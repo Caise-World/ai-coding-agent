@@ -5,6 +5,8 @@ import java.time.LocalDateTime;
 public class AgentEvent {
     private String type;
     private String content;
+    private String toolName;
+    private String input;
     private LocalDateTime timestamp;
 
     public AgentEvent() {
@@ -13,6 +15,13 @@ public class AgentEvent {
 
     public AgentEvent(String type, String content) {
         this.type = type;
+        this.content = content;
+        this.timestamp = LocalDateTime.now();
+    }
+
+    public AgentEvent(String type, String toolName, String content) {
+        this.type = type;
+        this.toolName = toolName;
         this.content = content;
         this.timestamp = LocalDateTime.now();
     }
@@ -26,11 +35,13 @@ public class AgentEvent {
     }
 
     public static AgentEvent toolCall(String toolName, String input) {
-        return new AgentEvent("TOOL_CALL", "Calling " + toolName + " with input: " + truncate(input, 100));
+        AgentEvent event = new AgentEvent("TOOL_CALL", toolName, null);
+        event.setInput(truncate(input, 200));
+        return event;
     }
 
     public static AgentEvent toolResult(String toolName, String result) {
-        return new AgentEvent("TOOL_RESULT", toolName + " result: " + truncate(result, 200));
+        return new AgentEvent("TOOL_RESULT", toolName, truncate(result, 500));
     }
 
     public static AgentEvent memoryRead(String content) {
@@ -73,4 +84,8 @@ public class AgentEvent {
     public void setContent(String content) { this.content = content; }
     public LocalDateTime getTimestamp() { return timestamp; }
     public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+    public String getToolName() { return toolName; }
+    public void setToolName(String toolName) { this.toolName = toolName; }
+    public String getInput() { return input; }
+    public void setInput(String input) { this.input = input; }
 }

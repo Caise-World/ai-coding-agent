@@ -22,3 +22,7 @@ application-secrets.yml
 
 ### Agent Memory (runtime data) ###
 /memory/
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/

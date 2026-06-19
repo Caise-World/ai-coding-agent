@@ -43,7 +43,7 @@ public class ToolSelector {
         }
 
         return """
-                You are a tool selector. Given a user message, select the most appropriate tool.
+                You are a tool selector for a coding assistant. Decide whether the user's message requires a tool.
 
                 Available tools:
                 %s
@@ -51,15 +51,16 @@ public class ToolSelector {
                 User message: %s
                 Project path: %s
 
-                Respond ONLY with a JSON object in this format:
-                {"toolName": "ToolName", "input": "the input to pass to the tool"}
+                Decide:
+                - If the message is a greeting, a conversational question (e.g. "who are you", "how are you"),
+                  or a general chat message that does NOT involve reading/writing files, scanning projects,
+                  or executing commands, respond with: {"toolName": "NONE", "input": ""}
+                - Otherwise, select the most appropriate tool from the list above.
+                - The input should be relevant to the user's request.
+                - Use the project path as the base for file/directory inputs.
 
-                Rules:
-                - Select ONLY one tool
-                - The input should be relevant to the user's request
-                - Use the project path as the base for file/directory inputs
-                - If no tool is needed, respond with: {"toolName": "NONE", "input": ""}
-                - Output ONLY the JSON object, no other text
+                Respond with ONLY a JSON object, no other text:
+                {"toolName": "ToolName", "input": "the input for the tool"}
                 """.formatted(toolList.toString(), userMessage, projectPath);
     }
 

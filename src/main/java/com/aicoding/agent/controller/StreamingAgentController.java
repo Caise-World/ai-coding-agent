@@ -57,7 +57,7 @@ public class StreamingAgentController {
         return streamingService.executeStream(request);
     }
 
-    @PostMapping("/stream")
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<AgentEvent> streamPost(@RequestBody ChatRequest request) {
         PluginBasedStreamingAgentService streamingService = new PluginBasedStreamingAgentService(
                 toolRegistry,

@@ -117,8 +117,18 @@ public class MemoryService {
         StringBuilder context = new StringBuilder();
         context.append("Previous experiences:\n");
 
+        int count = 0;
         for (Map.Entry<String, Object> entry : longTermCache.entrySet()) {
-            context.append("- ").append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
+            if (count >= 5) {
+                context.append("- ... and ").append(longTermCache.size() - 5).append(" more\n");
+                break;
+            }
+            String value = entry.getValue() != null ? entry.getValue().toString() : "";
+            if (value.length() > 100) {
+                value = value.substring(0, 100) + "...";
+            }
+            context.append("- ").append(entry.getKey()).append(": ").append(value).append("\n");
+            count++;
         }
 
         return context.toString();

@@ -76,7 +76,9 @@ public class PluginBasedStreamingAgentService {
 
         if (selection.hasError()) {
             sink.tryEmitNext(AgentEvent.error("Tool selection failed: " + selection.error()));
-            sink.tryEmitNext(AgentEvent.finalAnswer("Sorry, I couldn't select an appropriate tool for your request."));
+            sink.tryEmitNext(AgentEvent.thinking("Falling back to direct answer..."));
+            String answer = generateDirectAnswer(userMessage);
+            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
             return;
         }
 
@@ -96,15 +98,20 @@ public class PluginBasedStreamingAgentService {
             sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), truncateResult(result.output(), 500)));
             sink.tryEmitNext(AgentEvent.verification("SUCCESS", "Tool executed successfully"));
             memoryService.saveExperience(selection.toolName(), result.output(), userMessage);
+
+            // Phase 3: Generate Final Answer
+            String summary = buildSummary(userMessage, selection, result);
+            sink.tryEmitNext(AgentEvent.finalAnswer(summary));
         } else {
             sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), "Error: " + result.error()));
             sink.tryEmitNext(AgentEvent.verification("FAILED", result.error()));
             memoryService.saveFailure(selection.toolName(), result.error(), userMessage);
-        }
 
-        // Phase 3: Generate Final Answer
-        String summary = buildSummary(userMessage, selection, result);
-        sink.tryEmitNext(AgentEvent.finalAnswer(summary));
+            // Fallback to direct answer on tool failure
+            sink.tryEmitNext(AgentEvent.thinking("Tool failed, generating direct answer instead..."));
+            String answer = generateDirectAnswer(userMessage);
+            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
+        }
 
         // Final memory update
         memoryService.saveShortTerm(sessionId, "endTime", System.currentTimeMillis());
@@ -122,7 +129,13 @@ public class PluginBasedStreamingAgentService {
                 """.formatted(userMessage);
 
         LLMService.LLMResponse response = llmService.chat(prompt);
-        return response.content() != null ? response.content() : "I couldn't generate a response.";
+        String content = response.content() != null ? response.content() : "I couldn't generate a response.";
+        return stripThinking(content);
+    }
+
+    private String stripThinking(String text) {
+        if (text == null) return "";
+        return text.replaceAll("(?s)<think>.*?</think>", "").trim();
     }
 
     private String buildSummary(String userMessage, ToolSelector.ToolSelection selection, ToolExecutor.ToolExecutionResult result) {
