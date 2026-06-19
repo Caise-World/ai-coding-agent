@@ -2,9 +2,7 @@ package com.aicoding.agent.service;
 
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.dto.ChatResponse;
-import com.aicoding.agent.tool.FileReadTool;
-import com.aicoding.agent.tool.ProjectScanTool;
-import com.aicoding.agent.tool.Tool;
+import com.aicoding.agent.tool.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -14,23 +12,29 @@ import java.util.regex.*;
 @Service
 public class ReActAgentService {
 
-    private static final int MAX_ITERATIONS = 5;
+    private static final int MAX_ITERATIONS = 8;
     private static final Pattern ACTION_PATTERN = Pattern.compile(
-        "Action:\\s*(\\w+)\\s*\\(\\s*[\"']?([^\"'()]+)[\"']?\\s*\\)", Pattern.CASE_INSENSITIVE);
+        "Action:\\s*(\\w+)\\s*\\(\\s*([\\s\\S]*?)\\s*\\)", Pattern.CASE_INSENSITIVE);
 
     private final LLMService llmService;
     private final ProjectScanTool projectScanTool;
     private final FileReadTool fileReadTool;
+    private final FileWriteTool fileWriteTool;
+    private final CommandExecuteTool commandExecuteTool;
     private final String defaultProjectPath;
 
     public ReActAgentService(
             LLMService llmService,
             ProjectScanTool projectScanTool,
             FileReadTool fileReadTool,
+            FileWriteTool fileWriteTool,
+            CommandExecuteTool commandExecuteTool,
             @Value("${agent.project-path}") String defaultProjectPath) {
         this.llmService = llmService;
         this.projectScanTool = projectScanTool;
         this.fileReadTool = fileReadTool;
+        this.fileWriteTool = fileWriteTool;
+        this.commandExecuteTool = commandExecuteTool;
         this.defaultProjectPath = defaultProjectPath;
     }
 
@@ -41,11 +45,12 @@ public class ReActAgentService {
         Map<String, Tool> toolMap = new HashMap<>();
         toolMap.put("ProjectScanTool", projectScanTool);
         toolMap.put("FileReadTool", fileReadTool);
+        toolMap.put("FileWriteTool", fileWriteTool);
+        toolMap.put("CommandExecuteTool", commandExecuteTool);
 
         List<String> conversationHistory = new ArrayList<>();
         String systemPrompt = buildReactSystemPrompt(projectPath);
 
-        // Initial user message
         conversationHistory.add("User: " + userMessage);
 
         String finalAnswer = null;
@@ -54,9 +59,7 @@ public class ReActAgentService {
         while (iterations < MAX_ITERATIONS) {
             iterations++;
 
-            // Build full prompt with history
             String fullPrompt = buildFullPrompt(systemPrompt, conversationHistory);
-
             LLMService.LLMResponse response = llmService.chat(fullPrompt);
 
             if (response.error() != null) {
@@ -71,7 +74,6 @@ public class ReActAgentService {
 
             conversationHistory.add("Assistant: " + content);
 
-            // Try to parse tool call from text
             ToolCallInfo toolCallInfo = parseToolCall(content);
 
             if (toolCallInfo != null) {
@@ -83,11 +85,9 @@ public class ReActAgentService {
                     conversationHistory.add("Observation: Tool not found: " + toolCallInfo.toolName);
                 }
             } else if (isFinalAnswer(content)) {
-                // No more tool calls, this is the final answer
                 finalAnswer = extractFinalAnswer(content);
                 break;
             } else {
-                // Response doesn't seem to be a final answer or tool call
                 finalAnswer = content;
                 break;
             }
@@ -102,22 +102,32 @@ public class ReActAgentService {
 
     private String buildReactSystemPrompt(String projectPath) {
         return """
-                You are a coding assistant using the ReAct pattern.
+                You are an expert coding assistant using the ReAct pattern.
 
                 Available tools:
-                - ProjectScanTool: Scans a project directory. Input: absolute directory path
-                - FileReadTool: Reads file content. Input: absolute file path
+                1. ProjectScanTool: Scans project structure. Input: absolute directory path
+                2. FileReadTool: Reads file content. Input: absolute file path
+                3. FileWriteTool: Writes content to file. Input: "filePath|content" (separated by pipe)
+                4. CommandExecuteTool: Executes shell commands. Input: absolute command
+
+                Supported commands:
+                - mvn test: Run tests
+                - mvn compile: Compile project
+                - cd /path && mvn test: Run tests in specific directory
 
                 ReAct format:
                 Thought: ... (your reasoning)
                 Action: ToolName(input)
-                Observation: ... (result from previous action)
+                Observation: ... (result)
 
                 When you have enough information, provide your final answer.
 
                 Default project path: %s
 
-                Important: Use the format Action: ToolName(input) when calling tools.
+                IMPORTANT:
+                - Use FileWriteTool when user asks to modify, create, or update files
+                - Use CommandExecuteTool when user asks to run tests, compile, or execute commands
+                - Always provide the absolute path when using tools
                 """.formatted(projectPath);
     }
 
@@ -147,11 +157,10 @@ public class ReActAgentService {
         return lower.contains("final answer") ||
                lower.contains("answer:") ||
                lower.contains("最终答案") ||
-               (content.length() < 200 && !content.contains("Action:"));
+               (content.length() < 300 && !content.contains("Action:"));
     }
 
     private String extractFinalAnswer(String content) {
-        // Try to extract the actual answer part
         int idx = content.toLowerCase().indexOf("final answer");
         if (idx >= 0) {
             return content.substring(idx + "final answer".length()).trim();
