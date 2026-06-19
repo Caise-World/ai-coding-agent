@@ -19,3 +19,6 @@ application-secrets.yml
 
 ### Logs ###
 *.log
+
+### Agent Memory (runtime data) ###
+/memory/

@@ -2,6 +2,7 @@ package com.aicoding.agent.service;
 
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.dto.ChatResponse;
+import com.aicoding.agent.memory.MemoryService;
 import com.aicoding.agent.model.*;
 import com.aicoding.agent.tool.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +18,8 @@ public class V6EngineeringAgentService {
     private final TaskPlannerService taskPlannerService;
     private final FailureAnalysisService failureAnalysisService;
     private final TraceService traceService;
+    private final MemoryService memoryService;
     private final LLMService llmService;
-    private final AgentMemory agentMemory;
     private final ProjectScanTool projectScanTool;
     private final FileReadTool fileReadTool;
     private final FileWriteTool fileWriteTool;
@@ -31,6 +32,7 @@ public class V6EngineeringAgentService {
             TaskPlannerService taskPlannerService,
             FailureAnalysisService failureAnalysisService,
             TraceService traceService,
+            MemoryService memoryService,
             LLMService llmService,
             ProjectScanTool projectScanTool,
             FileReadTool fileReadTool,
@@ -40,8 +42,8 @@ public class V6EngineeringAgentService {
         this.taskPlannerService = taskPlannerService;
         this.failureAnalysisService = failureAnalysisService;
         this.traceService = traceService;
+        this.memoryService = memoryService;
         this.llmService = llmService;
-        this.agentMemory = new AgentMemory();
         this.projectScanTool = projectScanTool;
         this.fileReadTool = fileReadTool;
         this.fileWriteTool = fileWriteTool;
@@ -57,23 +59,29 @@ public class V6EngineeringAgentService {
         String userMessage = request.getMessage();
         String projectPath = request.getPath() != null ? request.getPath() : defaultProjectPath;
 
-        // Update short-term memory
-        agentMemory.updateTaskState("userMessage", userMessage);
-        agentMemory.updateTaskState("projectPath", projectPath);
-        agentMemory.updateTaskState("sessionId", sessionId);
+        // Phase 0: Memory Retrieval
+        String memoryContext = memoryService.getMemoryContext();
+        memoryService.saveShortTerm(sessionId, "userMessage", userMessage);
+        memoryService.saveShortTerm(sessionId, "projectPath", projectPath);
+        memoryService.saveShortTerm(sessionId, "startTime", System.currentTimeMillis());
 
         StringBuilder finalReport = new StringBuilder();
         finalReport.append("=== V6 Engineering-grade Agent ===\n");
         finalReport.append("Session: ").append(sessionId).append("\n\n");
 
-        // Phase 1: Planning
+        // Phase 1: Planning (with memory context)
         stepCounter++;
-        traceService.addTrace(stepCounter, "PLANNING", userMessage, null,
-                "Starting task planning", "Analyze user request and create execution plan", true);
+        traceService.addTrace(stepCounter, "MEMORY_RETRIEVAL", userMessage, null,
+                memoryContext, "Retrieved relevant experiences from memory", true);
 
-        finalReport.append("[Phase 1] Planning\n");
+        finalReport.append("[Phase 0] Memory Retrieval\n");
+        finalReport.append(memoryContext.isBlank() ? "No relevant prior experience.\n" : memoryContext);
+        finalReport.append("\n[Phase 1] Planning\n");
+
         List<SubTask> subtasks = taskPlannerService.plan(userMessage, projectPath);
         finalReport.append("Planned ").append(subtasks.size()).append(" tasks\n");
+
+        memoryService.saveShortTerm(sessionId, "plan", subtasks.toString());
 
         // Phase 2: Execute + Verify + Recover Loop
         finalReport.append("\n[Phase 2] Execute-Verify-Recover Loop\n");
@@ -85,8 +93,6 @@ public class V6EngineeringAgentService {
             stepCounter++;
             finalReport.append("\n--- Loop ").append(loopCount).append(" ---\n");
 
-            agentMemory.updateTaskState("currentLoop", loopCount);
-
             for (SubTask task : subtasks) {
                 if (task.getState() == TaskState.SUCCESS) {
                     finalReport.append("[SKIP] Task ").append(task.getId()).append(" already completed\n");
@@ -97,12 +103,17 @@ public class V6EngineeringAgentService {
                 task.setState(TaskState.RUNNING);
                 finalReport.append("[EXEC] Task ").append(task.getId()).append(": ").append(task.getDescription()).append("\n");
 
+                // Save execution to short-term memory
+                memoryService.saveShortTerm(sessionId, "currentTask", task.getDescription());
+                memoryService.saveShortTerm(sessionId, "currentLoop", loopCount);
+
                 // Execute
                 String reasoning = "Executing " + task.getTool() + " with input: " + truncate(task.getInput(), 50);
                 traceService.addTrace(stepCounter, "EXECUTION", task.getInput(), task.getTool(),
                         "", reasoning, true);
 
                 executeSubTask(task);
+                memoryService.saveShortTerm(sessionId, "lastResult", task.getResult());
 
                 // Verify
                 boolean verified = simpleVerify(task);
@@ -112,6 +123,9 @@ public class V6EngineeringAgentService {
                     traceService.addTrace(stepCounter, "VERIFICATION", task.getDescription(), task.getTool(),
                             "Task completed successfully", "Output verified as successful", true);
                     finalReport.append("  [SUCCESS]\n");
+
+                    // Save success experience to long-term memory
+                    memoryService.saveExperience(task.getTool(), task.getResult(), task.getDescription());
                 } else {
                     task.setState(TaskState.FAILED);
                     finalReport.append("  [FAILED]\n");
@@ -131,21 +145,15 @@ public class V6EngineeringAgentService {
                     finalReport.append("  Root Cause: ").append(analysis.getRootCauseHypothesis()).append("\n");
                     finalReport.append("  Fix Strategy: ").append(analysis.getFixStrategy()).append("\n");
 
-                    // Store in long-term memory
-                    agentMemory.addSolvedPattern(
-                            analysis.getFailureReason(),
-                            analysis.getFixStrategy(),
-                            task.getDescription()
-                    );
+                    // Save failure to long-term memory
+                    memoryService.saveFailure(task.getDescription(), analysis.getFailureReason(), analysis.getFixStrategy());
 
-                    // Phase 4: Recovery (retry with fix)
+                    // Phase 4: Recovery
                     if (loopCount < MAX_LOOP_ITERATIONS) {
                         stepCounter++;
                         finalReport.append("\n[Phase 4] Recovery Attempt\n");
                         traceService.addTrace(stepCounter, "RECOVERY", task.getDescription(), task.getTool(),
-                                "Retrying with adjusted approach", "Applying fix strategy: " + analysis.getFixStrategy(), true);
-
-                        // Simple retry - in real system would apply fix strategy
+                                "Retrying with adjusted approach", "Applying fix strategy", true);
                         task.setState(TaskState.PENDING);
                         finalReport.append("  Retrying task...\n");
                     }
@@ -155,7 +163,7 @@ public class V6EngineeringAgentService {
             allSuccess = subtasks.stream().allMatch(t -> t.getState() == TaskState.SUCCESS);
         }
 
-        // Phase 5: Finalize
+        // Phase 5: Finalization
         stepCounter++;
         finalReport.append("\n[Phase 5] Finalization\n");
         String traceReport = traceService.generateTraceReport();
@@ -167,8 +175,10 @@ public class V6EngineeringAgentService {
         finalReport.append("Completed: ").append(successCount).append("/").append(subtasks.size()).append(" tasks\n");
         finalReport.append("\n--- Trace Report ---\n").append(traceReport);
 
-        // Clear short-term memory for next session
-        agentMemory.clearTaskState();
+        // Save final state to short-term memory
+        memoryService.saveShortTerm(sessionId, "endTime", System.currentTimeMillis());
+        memoryService.saveShortTerm(sessionId, "successCount", successCount);
+        memoryService.saveShortTerm(sessionId, "totalTasks", subtasks.size());
 
         return new ChatResponse(finalReport.toString(), subtasks.size() > 1, "V6");
     }
