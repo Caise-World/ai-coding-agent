@@ -2,21 +2,21 @@ package com.aicoding.agent.controller;
 
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.dto.ChatResponse;
-import com.aicoding.agent.service.V5AutonomousAgentService;
+import com.aicoding.agent.service.V6EngineeringAgentService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/agent")
 public class AgentController {
 
-    private final V5AutonomousAgentService v5AgentService;
+    private final V6EngineeringAgentService v6AgentService;
 
-    public AgentController(V5AutonomousAgentService v5AgentService) {
-        this.v5AgentService = v5AgentService;
+    public AgentController(V6EngineeringAgentService v6AgentService) {
+        this.v6AgentService = v6AgentService;
     }
 
     @PostMapping("/chat")
     public ChatResponse chat(@RequestBody ChatRequest request) {
-        return v5AgentService.chat(request);
+        return v6AgentService.chat(request);
     }
 }
