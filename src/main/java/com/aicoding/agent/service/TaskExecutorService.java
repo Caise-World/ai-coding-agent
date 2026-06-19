@@ -1,6 +1,7 @@
 package com.aicoding.agent.service;
 
 import com.aicoding.agent.model.SubTask;
+import com.aicoding.agent.model.TaskState;
 import com.aicoding.agent.tool.*;
 import org.springframework.stereotype.Service;
 
@@ -35,7 +36,7 @@ public class TaskExecutorService {
         try {
             String result = tool.execute(task.getInput());
             task.setResult(result);
-            task.setCompleted(true);
+            task.setState(TaskState.SUCCESS);
             return result;
         } catch (Exception e) {
             String error = "Error executing " + task.getTool() + ": " + e.getMessage();

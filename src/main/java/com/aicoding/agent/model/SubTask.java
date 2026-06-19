@@ -6,16 +6,18 @@ public class SubTask {
     private String tool;
     private String input;
     private String result;
-    private boolean completed;
+    private TaskState state;
 
-    public SubTask() {}
+    public SubTask() {
+        this.state = TaskState.PENDING;
+    }
 
     public SubTask(int id, String description, String tool, String input) {
         this.id = id;
         this.description = description;
         this.tool = tool;
         this.input = input;
-        this.completed = false;
+        this.state = TaskState.PENDING;
     }
 
     public int getId() { return id; }
@@ -28,6 +30,7 @@ public class SubTask {
     public void setInput(String input) { this.input = input; }
     public String getResult() { return result; }
     public void setResult(String result) { this.result = result; }
-    public boolean isCompleted() { return completed; }
-    public void setCompleted(boolean completed) { this.completed = completed; }
+    public TaskState getState() { return state; }
+    public void setState(TaskState state) { this.state = state; }
+    public boolean isCompleted() { return state == TaskState.SUCCESS; }
 }

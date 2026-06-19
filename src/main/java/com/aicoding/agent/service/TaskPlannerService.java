@@ -36,6 +36,44 @@ public class TaskPlannerService {
         return parseSubTasks(response.content());
     }
 
+    public SubTask planToSubTask(int id, String goal, String projectPath) {
+        String prompt = buildSingleTaskPrompt(goal, projectPath);
+        LLMService.LLMResponse response = llmService.chat(prompt);
+
+        if (response.error() != null) {
+            return new SubTask(id, goal, "ProjectScanTool", projectPath);
+        }
+
+        List<SubTask> tasks = parseSubTasks(response.content());
+        if (!tasks.isEmpty()) {
+            SubTask task = tasks.get(0);
+            task.setId(id);
+            return task;
+        }
+
+        return new SubTask(id, goal, "ProjectScanTool", projectPath);
+    }
+
+    private String buildSingleTaskPrompt(String goal, String projectPath) {
+        return """
+                For the following goal, determine which tool to use and what input to provide.
+
+                Goal: %s
+                Project path: %s
+
+                Available tools:
+                - ProjectScanTool: Scan project structure
+                - FileReadTool: Read file content
+                - FileWriteTool: Write content to file
+                - CommandExecuteTool: Execute shell commands
+
+                Respond ONLY with a JSON object:
+                {"id": 1, "description": "...", "tool": "ToolName", "input": "..."}
+
+                Output ONLY the JSON object, no other text.
+                """.formatted(goal, projectPath);
+    }
+
     private String buildPlanningPrompt(String userMessage, String projectPath) {
         return """
                 You are a task planner. Break down the user's request into subtasks.
