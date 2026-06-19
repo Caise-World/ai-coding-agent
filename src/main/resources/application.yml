@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: ai-coding-agent
+
+server:
+  port: 8082
+
+llm:
+  api-key: ${MINIMAX_API_KEY:your-api-key-here}
+  model: minimax-m2.7
+  base-url: https://api.minimax.chat/v1
+
+agent:
+  project-path: ${USER_HOME:/Users/wanshun}
