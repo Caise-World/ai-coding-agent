@@ -2,21 +2,21 @@ package com.aicoding.agent.controller;
 
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.dto.ChatResponse;
-import com.aicoding.agent.service.CodingAgentService;
+import com.aicoding.agent.service.ReActAgentService;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/agent")
 public class AgentController {
 
-    private final CodingAgentService agentService;
+    private final ReActAgentService reactAgentService;
 
-    public AgentController(CodingAgentService agentService) {
-        this.agentService = agentService;
+    public AgentController(ReActAgentService reactAgentService) {
+        this.reactAgentService = reactAgentService;
     }
 
     @PostMapping("/chat")
     public ChatResponse chat(@RequestBody ChatRequest request) {
-        return agentService.chat(request);
+        return reactAgentService.chat(request);
     }
 }

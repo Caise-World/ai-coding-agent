@@ -31,7 +31,7 @@ public class LLMService {
         this.objectMapper = new ObjectMapper();
     }
 
-    public LLMResponse chat(String systemPrompt, String userMessage) {
+    public LLMResponse chat(String prompt) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -41,57 +41,12 @@ public class LLMService {
             requestBody.put("model", model);
 
             ArrayNode messages = objectMapper.createArrayNode();
-
-            ObjectNode systemMsg = objectMapper.createObjectNode();
-            systemMsg.put("role", "system");
-            systemMsg.put("content", systemPrompt);
-            messages.add(systemMsg);
-
             ObjectNode userMsg = objectMapper.createObjectNode();
             userMsg.put("role", "user");
-            userMsg.put("content", userMessage);
+            userMsg.put("content", prompt);
             messages.add(userMsg);
 
             requestBody.set("messages", messages);
-
-            // 添加 tools 参数启用 function calling
-            ArrayNode tools = objectMapper.createArrayNode();
-            ObjectNode tool = objectMapper.createObjectNode();
-            tool.put("type", "function");
-
-            ObjectNode function = objectMapper.createObjectNode();
-            function.put("name", "ProjectScanTool");
-            function.put("description", "Scans a project directory and returns its structure. Input: absolute directory path.");
-
-            ObjectNode properties = objectMapper.createObjectNode();
-            ObjectNode inputProp = objectMapper.createObjectNode();
-            inputProp.put("type", "string");
-            inputProp.put("description", "absolute directory path");
-            properties.set("input", inputProp);
-            function.set("parameters", properties);
-
-            tool.set("function", function);
-            tools.add(tool);
-
-            // 添加 FileReadTool
-            ObjectNode tool2 = objectMapper.createObjectNode();
-            tool2.put("type", "function");
-
-            ObjectNode function2 = objectMapper.createObjectNode();
-            function2.put("name", "FileReadTool");
-            function2.put("description", "Reads the content of a file. Input: absolute file path.");
-
-            ObjectNode properties2 = objectMapper.createObjectNode();
-            ObjectNode inputProp2 = objectMapper.createObjectNode();
-            inputProp2.put("type", "string");
-            inputProp2.put("description", "absolute file path");
-            properties2.set("input", inputProp2);
-            function2.set("parameters", properties2);
-
-            tool2.set("function", function2);
-            tools.add(tool2);
-
-            requestBody.set("tools", tools);
 
             HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
 
@@ -100,7 +55,7 @@ public class LLMService {
 
             return parseResponse(response.getBody());
         } catch (Exception e) {
-            return new LLMResponse(null, null, "Error: " + e.getMessage());
+            return new LLMResponse(null, "Error: " + e.getMessage());
         }
     }
 
@@ -115,20 +70,11 @@ public class LLMService {
             String content = message.has("content") && !message.get("content").isNull()
                 ? message.get("content").asText() : null;
 
-            JsonNode toolCalls = message.get("tool_calls");
-            if (toolCalls != null && toolCalls.isArray() && toolCalls.size() > 0) {
-                JsonNode toolCall = toolCalls.get(0);
-                String toolName = toolCall.get("function").get("name").asText();
-                String arguments = toolCall.get("function").get("arguments").asText();
-                return new LLMResponse(content, new ToolCall(toolName, arguments), null);
-            }
-
-            return new LLMResponse(content, null, null);
+            return new LLMResponse(content, null);
         }
 
-        return new LLMResponse(null, null, "No response from LLM");
+        return new LLMResponse(null, "No response from LLM");
     }
 
-    public record LLMResponse(String content, ToolCall toolCall, String error) {}
-    public record ToolCall(String name, String arguments) {}
+    public record LLMResponse(String content, String error) {}
 }
