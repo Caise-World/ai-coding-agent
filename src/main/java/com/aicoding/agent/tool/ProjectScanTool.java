@@ -5,6 +5,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.StringJoiner;
 
 @Component
@@ -24,11 +26,28 @@ public class ProjectScanTool implements Tool {
     }
 
     @Override
-    public String execute(String input) {
+    public Map<String, Object> getSchema() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("name", "ProjectScanTool");
+        schema.put("description", "Scans a project directory and returns its structure");
+
+        Map<String, Object> properties = new HashMap<>();
+        Map<String, Object> inputProp = new HashMap<>();
+        inputProp.put("type", "string");
+        inputProp.put("description", "Absolute directory path to scan");
+        properties.put("input", inputProp);
+
+        schema.put("parameters", properties);
+        return schema;
+    }
+
+    @Override
+    public ToolResult execute(ToolContext context) {
         try {
+            String input = context.getInput();
             Path path = Paths.get(input.trim());
             if (!Files.exists(path) || !Files.isDirectory(path)) {
-                return "Error: Directory not found: " + input;
+                return ToolResult.error("Error: Directory not found: " + input);
             }
 
             StringJoiner result = new StringJoiner("\n");
@@ -90,9 +109,9 @@ public class ProjectScanTool implements Tool {
                 result.add("\n... (showing first " + MAX_FILES + " relevant files)");
             }
 
-            return result.toString();
+            return ToolResult.success(result.toString());
         } catch (IOException e) {
-            return "Error scanning directory: " + e.getMessage();
+            return ToolResult.error("Error scanning directory: " + e.getMessage());
         }
     }
 

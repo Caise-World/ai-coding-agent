@@ -6,6 +6,8 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class FileWriteTool implements Tool {
@@ -23,21 +25,36 @@ public class FileWriteTool implements Tool {
     }
 
     @Override
-    public String execute(String input) {
+    public Map<String, Object> getSchema() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("name", "FileWriteTool");
+        schema.put("description", "Writes content to a file");
+
+        Map<String, Object> properties = new HashMap<>();
+        Map<String, Object> inputProp = new HashMap<>();
+        inputProp.put("type", "string");
+        inputProp.put("description", "JSON with file_path and content, or 'filePath|content' format");
+        properties.put("input", inputProp);
+
+        schema.put("parameters", properties);
+        return schema;
+    }
+
+    @Override
+    public ToolResult execute(ToolContext context) {
         try {
+            String input = context.getInput();
             String filePath;
             String content;
 
-            // Try JSON format first
             if (input.trim().startsWith("{")) {
                 JsonNode node = objectMapper.readTree(input);
                 filePath = node.get("file_path").asText();
                 content = node.get("content").asText();
             } else {
-                // Fall back to pipe-separated format
                 String[] parts = input.split("\\|", 2);
                 if (parts.length != 2) {
-                    return "Error: Input must be JSON with file_path/content or 'filePath|content' format";
+                    return ToolResult.error("Error: Input must be JSON with file_path/content or 'filePath|content' format");
                 }
                 filePath = parts[0].trim();
                 content = parts[1];
@@ -50,11 +67,11 @@ public class FileWriteTool implements Tool {
             }
 
             Files.writeString(path, content);
-            return "Successfully wrote to file: " + filePath;
+            return ToolResult.success("Successfully wrote to file: " + filePath);
         } catch (IOException e) {
-            return "Error writing file: " + e.getMessage();
+            return ToolResult.error("Error writing file: " + e.getMessage());
         } catch (Exception e) {
-            return "Error parsing input: " + e.getMessage();
+            return ToolResult.error("Error parsing input: " + e.getMessage());
         }
     }
 }

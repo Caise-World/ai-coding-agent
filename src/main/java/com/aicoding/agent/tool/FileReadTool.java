@@ -4,9 +4,13 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.nio.file.*;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class FileReadTool implements Tool {
+
+    private static final int MAX_LENGTH = 10000;
 
     @Override
     public String name() {
@@ -19,20 +23,36 @@ public class FileReadTool implements Tool {
     }
 
     @Override
-    public String execute(String input) {
+    public Map<String, Object> getSchema() {
+        Map<String, Object> schema = new HashMap<>();
+        schema.put("name", "FileReadTool");
+        schema.put("description", "Reads the content of a file");
+
+        Map<String, Object> properties = new HashMap<>();
+        Map<String, Object> inputProp = new HashMap<>();
+        inputProp.put("type", "string");
+        inputProp.put("description", "Absolute file path to read");
+        properties.put("input", inputProp);
+
+        schema.put("parameters", properties);
+        return schema;
+    }
+
+    @Override
+    public ToolResult execute(ToolContext context) {
         try {
+            String input = context.getInput();
             Path path = Paths.get(input.trim());
             if (!Files.exists(path) || !Files.isRegularFile(path)) {
-                return "Error: File not found or is not a regular file: " + input;
+                return ToolResult.error("Error: File not found or is not a regular file: " + input);
             }
             String content = Files.readString(path);
-            int maxLength = 10000;
-            if (content.length() > maxLength) {
-                content = content.substring(0, maxLength) + "\n... (truncated)";
+            if (content.length() > MAX_LENGTH) {
+                content = content.substring(0, MAX_LENGTH) + "\n... (truncated)";
             }
-            return content;
+            return ToolResult.success(content);
         } catch (IOException e) {
-            return "Error reading file: " + e.getMessage();
+            return ToolResult.error("Error reading file: " + e.getMessage());
         }
     }
 }
