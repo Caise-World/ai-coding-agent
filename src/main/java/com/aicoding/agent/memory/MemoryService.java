@@ -193,4 +193,28 @@ public class MemoryService {
         String value = "Reason: " + reason + " | Fix: " + fixStrategy;
         saveLongTerm(key, value);
     }
+
+    // Get repair context from historical failures
+    public String getRepairContext() {
+        if (longTermCache.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder context = new StringBuilder();
+        context.append("Historical repair patterns:\n");
+
+        int count = 0;
+        for (Map.Entry<String, Object> entry : longTermCache.entrySet()) {
+            if (entry.getKey().startsWith("FAILURE:") && count < 3) {
+                String value = entry.getValue() != null ? entry.getValue().toString() : "";
+                if (value.length() > 150) {
+                    value = value.substring(0, 150) + "...";
+                }
+                context.append("- ").append(entry.getKey()).append(": ").append(value).append("\n");
+                count++;
+            }
+        }
+
+        return context.length() > 30 ? context.toString() : "";
+    }
 }

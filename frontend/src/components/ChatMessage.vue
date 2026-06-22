@@ -35,6 +35,10 @@ const typeConfig = {
   TOOL_CALL: { icon: '🔧', label: 'Tool Call' },
   TOOL_RESULT: { icon: '📦', label: 'Tool Result' },
   VERIFICATION: { icon: '✅', label: 'Verification' },
+  REFLECTION: { icon: '🔍', label: 'Reflection' },
+  REPAIR: { icon: '🔧', label: 'Repair' },
+  RETRY: { icon: '🔄', label: 'Retry' },
+  MAX_RETRIES_EXCEEDED: { icon: '⛔', label: 'Max Retries' },
   FINAL: { icon: '✨', label: 'Final Answer' },
   ERROR: { icon: '❌', label: 'Error' }
 }
@@ -114,6 +118,26 @@ watch(() => props.content, (newVal) => {
 .message-error {
   background: #3a1a1a;
   border-left: 3px solid #ef4444;
+}
+
+.message-reflection {
+  background: #2a2a5a;
+  border-left: 3px solid #8b5cf6;
+}
+
+.message-repair {
+  background: #2a3a4a;
+  border-left: 3px solid #06b6d4;
+}
+
+.message-retry {
+  background: #3a3a2a;
+  border-left: 3px solid #f59e0b;
+}
+
+.message-max-retries-exceeded {
+  background: #4a1a1a;
+  border-left: 3px solid #dc2626;
 }
 
 .message-icon {

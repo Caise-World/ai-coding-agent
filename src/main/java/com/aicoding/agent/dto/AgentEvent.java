@@ -72,6 +72,22 @@ public class AgentEvent {
         return new AgentEvent("ERROR", content);
     }
 
+    public static AgentEvent reflection(String content) {
+        return new AgentEvent("REFLECTION", content);
+    }
+
+    public static AgentEvent repair(String content) {
+        return new AgentEvent("REPAIR", content);
+    }
+
+    public static AgentEvent retry(int attempt, int maxAttempts) {
+        return new AgentEvent("RETRY", String.format("Retry attempt %d/%d", attempt, maxAttempts));
+    }
+
+    public static AgentEvent maxRetriesExceeded(int maxAttempts) {
+        return new AgentEvent("MAX_RETRIES_EXCEEDED", String.format("Exceeded maximum retry attempts (%d)", maxAttempts));
+    }
+
     private static String truncate(String str, int maxLen) {
         if (str == null) return "null";
         if (str.length() <= maxLen) return str;

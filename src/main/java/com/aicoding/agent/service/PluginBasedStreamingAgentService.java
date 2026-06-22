@@ -15,6 +15,8 @@ import java.util.concurrent.CompletableFuture;
 
 public class PluginBasedStreamingAgentService {
 
+    private static final int MAX_RETRIES = 3;
+
     private final ToolRegistry toolRegistry;
     private final ToolSelector toolSelector;
     private final ToolExecutor toolExecutor;
@@ -61,7 +63,11 @@ public class PluginBasedStreamingAgentService {
         // Phase 0: Memory Retrieval
         sink.tryEmitNext(AgentEvent.thinking("Retrieving relevant experiences from memory..."));
         String memoryContext = memoryService.getMemoryContext();
+        String repairContext = memoryService.getRepairContext();
         sink.tryEmitNext(AgentEvent.memoryRead(memoryContext.isBlank() ? "No prior experience found" : memoryContext));
+        if (!repairContext.isBlank()) {
+            sink.tryEmitNext(AgentEvent.memoryRead("[Repair Context]\n" + repairContext));
+        }
 
         memoryService.saveShortTerm(sessionId, "userMessage", userMessage);
         memoryService.saveShortTerm(sessionId, "projectPath", projectPath);
@@ -76,9 +82,7 @@ public class PluginBasedStreamingAgentService {
 
         if (selection.hasError()) {
             sink.tryEmitNext(AgentEvent.error("Tool selection failed: " + selection.error()));
-            sink.tryEmitNext(AgentEvent.thinking("Falling back to direct answer..."));
-            String answer = generateDirectAnswer(userMessage);
-            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
+            sink.tryEmitNext(AgentEvent.finalAnswer("Sorry, I couldn't select an appropriate tool for your request."));
             return;
         }
 
@@ -89,34 +93,142 @@ public class PluginBasedStreamingAgentService {
             return;
         }
 
-        // Phase 2: Tool Execution via ToolExecutor
-        sink.tryEmitNext(AgentEvent.toolCall(selection.toolName(), selection.input()));
+        // Phase 2: Tool Execution with Self-Healing
+        ToolExecutor.ToolExecutionResult finalResult = executeWithSelfHealing(
+                selection, userMessage, projectPath, sink);
 
-        ToolExecutor.ToolExecutionResult result = toolExecutor.execute(selection.toolName(), selection.input());
-
-        if (result.success()) {
-            sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), truncateResult(result.output(), 500)));
-            sink.tryEmitNext(AgentEvent.verification("SUCCESS", "Tool executed successfully"));
-            memoryService.saveExperience(selection.toolName(), result.output(), userMessage);
-
-            // Phase 3: Generate Final Answer
-            String summary = buildSummary(userMessage, selection, result);
-            sink.tryEmitNext(AgentEvent.finalAnswer(summary));
-        } else {
-            sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), "Error: " + result.error()));
-            sink.tryEmitNext(AgentEvent.verification("FAILED", result.error()));
-            memoryService.saveFailure(selection.toolName(), result.error(), userMessage);
-
-            // Fallback to direct answer on tool failure
-            sink.tryEmitNext(AgentEvent.thinking("Tool failed, generating direct answer instead..."));
-            String answer = generateDirectAnswer(userMessage);
-            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
-        }
+        // Phase 3: Generate Final Answer
+        String summary = buildSummary(userMessage, selection, finalResult);
+        sink.tryEmitNext(AgentEvent.finalAnswer(summary));
 
         // Final memory update
         memoryService.saveShortTerm(sessionId, "endTime", System.currentTimeMillis());
         memoryService.saveShortTerm(sessionId, "selectedTool", selection.toolName());
-        sink.tryEmitNext(AgentEvent.memoryWrite("Session completed. Tool: " + selection.toolName()));
+        memoryService.saveShortTerm(sessionId, "success", finalResult.success());
+        sink.tryEmitNext(AgentEvent.memoryWrite("Session completed. Tool: " + selection.toolName() +
+                ", Success: " + finalResult.success()));
+    }
+
+    private ToolExecutor.ToolExecutionResult executeWithSelfHealing(
+            ToolSelector.ToolSelection selection,
+            String userMessage,
+            String projectPath,
+            Sinks.Many<AgentEvent> sink) {
+
+        String currentInput = selection.input();
+        ToolExecutor.ToolExecutionResult lastResult = null;
+
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            // Phase 2: Tool Execution
+            sink.tryEmitNext(AgentEvent.toolCall(selection.toolName(), currentInput));
+
+            ToolExecutor.ToolExecutionResult result = toolExecutor.execute(selection.toolName(), currentInput);
+
+            if (result.success()) {
+                sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), truncateResult(result.output(), 500)));
+                sink.tryEmitNext(AgentEvent.verification("SUCCESS", "Tool executed successfully"));
+                memoryService.saveExperience(selection.toolName(), result.output(), userMessage);
+                return result;
+            }
+
+            // Execution failed - need self-healing
+            lastResult = result;
+            sink.tryEmitNext(AgentEvent.toolResult(selection.toolName(), "Error: " + result.error()));
+            sink.tryEmitNext(AgentEvent.verification("FAILED", result.error()));
+
+            if (attempt < MAX_RETRIES) {
+                // Phase 2.5: Reflection - Analyze error and generate fix suggestions
+                String reflection = performReflection(userMessage, selection.toolName(), currentInput, result.error());
+                sink.tryEmitNext(AgentEvent.reflection(reflection));
+
+                // Phase 2.6: Repair - Generate repair plan
+                String repairPlan = generateRepairPlan(userMessage, selection.toolName(), result.error(), reflection);
+                sink.tryEmitNext(AgentEvent.repair(repairPlan));
+
+                // Determine new input for retry
+                currentInput = extractRepairInput(repairPlan, currentInput, projectPath);
+
+                sink.tryEmitNext(AgentEvent.retry(attempt + 1, MAX_RETRIES));
+
+                // Save failure and repair strategy to memory
+                memoryService.saveFailure(selection.toolName(), result.error(), repairPlan);
+            } else {
+                // Max retries exceeded
+                sink.tryEmitNext(AgentEvent.maxRetriesExceeded(MAX_RETRIES));
+                memoryService.saveFailure(selection.toolName(), result.error(), "Max retries exceeded");
+            }
+        }
+
+        return lastResult != null ? lastResult : ToolExecutor.ToolExecutionResult.error("Unknown error");
+    }
+
+    private String performReflection(String userMessage, String toolName, String input, String error) {
+        String prompt = """
+                You are a self-healing agent analyzing a tool execution failure.
+
+                User request: %s
+                Tool used: %s
+                Tool input: %s
+                Error: %s
+
+                Analyze the failure and provide:
+                1. Root cause of the failure
+                2. What went wrong
+                3. Suggestions to fix the issue
+
+                Be concise and specific. Focus on actionable insights.
+                """.formatted(userMessage, toolName, input, error);
+
+        LLMService.LLMResponse response = llmService.chat(prompt);
+        return response.content() != null ? response.content() : "Unable to analyze failure.";
+    }
+
+    private String generateRepairPlan(String userMessage, String toolName, String error, String reflection) {
+        String prompt = """
+                You are a self-healing agent generating a repair plan.
+
+                User request: %s
+                Tool: %s
+                Error: %s
+                Reflection: %s
+
+                Based on the error and reflection, generate a repair plan that includes:
+                1. Modified approach to solve the problem
+                2. Alternative tool or parameters if needed
+                3. Specific fix to apply
+
+                Return ONLY the repair plan, no extra commentary.
+                """.formatted(userMessage, toolName, error, reflection);
+
+        LLMService.LLMResponse response = llmService.chat(prompt);
+        return response.content() != null ? response.content() : "No repair plan generated.";
+    }
+
+    private String extractRepairInput(String repairPlan, String originalInput, String projectPath) {
+        // Try to extract improved input from repair plan
+        String prompt = """
+                Extract the improved tool input from this repair plan.
+
+                Original input: %s
+                Repair plan: %s
+
+                Return ONLY the improved input to pass to the tool, nothing else.
+                If no specific input is mentioned, return the original input.
+                """.formatted(originalInput, repairPlan);
+
+        LLMService.LLMResponse response = llmService.chat(prompt);
+        String extracted = response.content();
+
+        if (extracted == null || extracted.isBlank() || extracted.toLowerCase().contains("no specific input")) {
+            return originalInput;
+        }
+
+        // If LLM returned something that looks like a path, prepend project path if needed
+        if (!extracted.startsWith("/") && !extracted.contains(" ")) {
+            return projectPath + "/" + extracted;
+        }
+
+        return extracted;
     }
 
     private String generateDirectAnswer(String userMessage) {
@@ -129,13 +241,7 @@ public class PluginBasedStreamingAgentService {
                 """.formatted(userMessage);
 
         LLMService.LLMResponse response = llmService.chat(prompt);
-        String content = response.content() != null ? response.content() : "I couldn't generate a response.";
-        return stripThinking(content);
-    }
-
-    private String stripThinking(String text) {
-        if (text == null) return "";
-        return text.replaceAll("(?s)<think>.*?</think>", "").trim();
+        return response.content() != null ? response.content() : "I couldn't generate a response.";
     }
 
     private String buildSummary(String userMessage, ToolSelector.ToolSelection selection, ToolExecutor.ToolExecutionResult result) {

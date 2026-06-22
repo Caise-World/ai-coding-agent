@@ -58,6 +58,10 @@ function getMarker(type) {
     MEMORY_READ: '📖',
     MEMORY_WRITE: '💾',
     VERIFICATION: '✅',
+    REFLECTION: '🔍',
+    REPAIR: '🔧',
+    RETRY: '🔄',
+    MAX_RETRIES_EXCEEDED: '⛔',
     FINAL: '✨',
     ERROR: '❌'
   }
@@ -151,6 +155,22 @@ watch(() => props.events, (events) => {
 
 .marker-error {
   background: #ef4444;
+}
+
+.marker-reflection {
+  background: #8b5cf6;
+}
+
+.marker-repair {
+  background: #06b6d4;
+}
+
+.marker-retry {
+  background: #f59e0b;
+}
+
+.marker-max_retries_exceeded {
+  background: #dc2626;
 }
 
 .timeline-content {
