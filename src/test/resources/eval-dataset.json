@@ -1,0 +1,78 @@
+[
+  {
+    "input": "帮我分析这个项目的目录结构",
+    "expectedTool": "ProjectScanTool"
+  },
+  {
+    "input": "scan the project structure and list all files",
+    "expectedTool": "ProjectScanTool"
+  },
+  {
+    "input": "列出项目里所有的文件和文件夹",
+    "expectedTool": "ProjectScanTool"
+  },
+  {
+    "input": "看看这个项目的整体布局",
+    "expectedTool": "ProjectScanTool"
+  },
+  {
+    "input": "读取 pom.xml 文件的内容",
+    "expectedTool": "FileReadTool"
+  },
+  {
+    "input": "read the file CLAUDE.md",
+    "expectedTool": "FileReadTool"
+  },
+  {
+    "input": "帮我看下 application.yml 里配置了什么",
+    "expectedTool": "FileReadTool"
+  },
+  {
+    "input": "查看 AgentApplication.java 的源代码",
+    "expectedTool": "FileReadTool"
+  },
+  {
+    "input": "帮我创建一个新的 Java 类 HelloWorld.java",
+    "expectedTool": "FileWriteTool"
+  },
+  {
+    "input": "write a README.md file for this project",
+    "expectedTool": "FileWriteTool"
+  },
+  {
+    "input": "生成一个 application.properties 配置文件",
+    "expectedTool": "FileWriteTool"
+  },
+  {
+    "input": "执行 mvn clean compile 命令",
+    "expectedTool": "CommandExecuteTool"
+  },
+  {
+    "input": "run git status to see what files changed",
+    "expectedTool": "CommandExecuteTool"
+  },
+  {
+    "input": "帮我查看当前 maven 的版本",
+    "expectedTool": "CommandExecuteTool"
+  },
+  {
+    "input": "你好，你是谁？",
+    "expectedTool": "NONE"
+  },
+  {
+    "input": "hello, how are you doing today?",
+    "expectedTool": "NONE"
+  },
+  {
+    "input": "什么是 Spring Boot？请解释一下",
+    "expectedTool": "NONE"
+  },
+  {
+    "input": "Java 和 Python 有什么区别？",
+    "expectedTool": "NONE"
+  },
+  {
+    "input": "谢谢你的帮助",
+    "expectedTool": "NONE"
+  }
+]

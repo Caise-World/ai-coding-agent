@@ -43,24 +43,31 @@ public class ToolSelector {
         }
 
         return """
-                You are a tool selector for a coding assistant. Decide whether the user's message requires a tool.
+                You are a tool selector. Pick ONE tool or NONE.
 
                 Available tools:
                 %s
 
+                Examples:
+                "列出所有文件" → ProjectScanTool
+                "项目结构是什么" → ProjectScanTool
+                "读取 pom.xml" → FileReadTool
+                "查看 CLAUDE.md 的内容" → FileReadTool
+                "查看 AgentApplication.java 的源代码" → FileReadTool
+                "帮我创建一个 HelloWorld.java" → FileWriteTool
+                "write a README.md file" → FileWriteTool
+                "write a README.md file for this project" → FileWriteTool
+                "生成一个 application.properties" → FileWriteTool
+                "执行 mvn clean compile" → CommandExecuteTool
+                "run git status" → CommandExecuteTool
+                "你好，你是谁" → NONE
+                "什么是 Spring Boot" → NONE
+
+                Now classify this:
                 User message: %s
                 Project path: %s
 
-                Decide:
-                - If the message is a greeting, a conversational question (e.g. "who are you", "how are you"),
-                  or a general chat message that does NOT involve reading/writing files, scanning projects,
-                  or executing commands, respond with: {"toolName": "NONE", "input": ""}
-                - Otherwise, select the most appropriate tool from the list above.
-                - The input should be relevant to the user's request.
-                - Use the project path as the base for file/directory inputs.
-
-                Respond with ONLY a JSON object, no other text:
-                {"toolName": "ToolName", "input": "the input for the tool"}
+                Output ONLY: {"toolName": "ToolName", "input": "the input"}
                 """.formatted(toolList.toString(), userMessage, projectPath);
     }
 
