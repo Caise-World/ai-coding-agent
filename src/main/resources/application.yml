@@ -7,8 +7,22 @@ server:
 
 llm:
   api-key: ${MINIMAX_API_KEY:your-api-key-here}
-  model: minimax-m2.7
-  base-url: https://api.minimax.chat/v1
+  model: ${MINIMAX_MODEL:minimax-m2.7}
+  base-url: ${MINIMAX_BASE_URL:https://api.minimax.chat/v1}
 
 agent:
-  project-path: ${USER_HOME:/Users/wanshun}
+  # Default to the JVM working directory (the directory `mvn spring-boot:run`
+  # was executed from). Falls back to $USER_HOME if the JVM dir is somehow empty.
+  # Override with AGENT_PROJECT_PATH=/some/path if needed.
+  project-path: ${AGENT_PROJECT_PATH:${user.dir:/Users/wanshun}}
+
+ollama:
+  host: ${OLLAMA_HOST:http://localhost:11434}
+  embed-model: ${OLLAMA_EMBED_MODEL:nomic-embed-text}
+  embed-dimension: 768
+
+rag:
+  enabled: true
+  cache-dir: ${RAG_CACHE_DIR:./.rag-cache}
+  top-k: 5
+  similarity-threshold: 0.3
