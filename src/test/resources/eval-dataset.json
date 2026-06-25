@@ -56,6 +56,26 @@
     "expectedTool": "CommandExecuteTool"
   },
   {
+    "input": "搜索 src/main/java 里包含 ToolSelector 的 java 文件",
+    "expectedTool": "GrepTool"
+  },
+  {
+    "input": "find all Java files that contain the word ToolRegistry",
+    "expectedTool": "GrepTool"
+  },
+  {
+    "input": "在项目里搜一下哪里用了 @PostConstruct",
+    "expectedTool": "GrepTool"
+  },
+  {
+    "input": "PluginBasedStreamingAgentService 是怎么实现自愈的",
+    "expectedTool": "NONE"
+  },
+  {
+    "input": "MemoryService 怎么存长期记忆",
+    "expectedTool": "NONE"
+  },
+  {
     "input": "你好，你是谁？",
     "expectedTool": "NONE"
   },

@@ -3,6 +3,9 @@ package com.aicoding.agent.controller;
 import com.aicoding.agent.dto.AgentEvent;
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.memory.MemoryService;
+import com.aicoding.agent.rag.RagService;
+import com.aicoding.agent.rag.routing.CodeQuestionDetector;
+import com.aicoding.agent.rag.workspace.WorkspaceService;
 import com.aicoding.agent.registry.ToolExecutor;
 import com.aicoding.agent.registry.ToolRegistry;
 import com.aicoding.agent.registry.ToolSelector;
@@ -21,6 +24,9 @@ public class StreamingAgentController {
     private final ToolExecutor toolExecutor;
     private final MemoryService memoryService;
     private final LLMService llmService;
+    private final RagService ragService;
+    private final CodeQuestionDetector codeQuestionDetector;
+    private final WorkspaceService workspaceService;
     private final String defaultProjectPath;
 
     public StreamingAgentController(
@@ -29,12 +35,18 @@ public class StreamingAgentController {
             ToolExecutor toolExecutor,
             MemoryService memoryService,
             LLMService llmService,
+            RagService ragService,
+            CodeQuestionDetector codeQuestionDetector,
+            WorkspaceService workspaceService,
             @Value("${agent.project-path}") String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
         this.toolSelector = toolSelector;
         this.toolExecutor = toolExecutor;
         this.memoryService = memoryService;
         this.llmService = llmService;
+        this.ragService = ragService;
+        this.codeQuestionDetector = codeQuestionDetector;
+        this.workspaceService = workspaceService;
         this.defaultProjectPath = defaultProjectPath;
     }
 
@@ -51,6 +63,9 @@ public class StreamingAgentController {
                 toolExecutor,
                 memoryService,
                 llmService,
+                ragService,
+                codeQuestionDetector,
+                workspaceService,
                 defaultProjectPath
         );
 
@@ -65,6 +80,9 @@ public class StreamingAgentController {
                 toolExecutor,
                 memoryService,
                 llmService,
+                ragService,
+                codeQuestionDetector,
+                workspaceService,
                 defaultProjectPath
         );
 

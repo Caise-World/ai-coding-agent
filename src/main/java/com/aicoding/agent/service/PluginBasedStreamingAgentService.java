@@ -4,6 +4,9 @@ import com.aicoding.agent.dto.AgentEvent;
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.memory.MemoryService;
 import com.aicoding.agent.model.*;
+import com.aicoding.agent.rag.RagService;
+import com.aicoding.agent.rag.routing.CodeQuestionDetector;
+import com.aicoding.agent.rag.workspace.WorkspaceService;
 import com.aicoding.agent.registry.ToolExecutor;
 import com.aicoding.agent.registry.ToolRegistry;
 import com.aicoding.agent.registry.ToolSelector;
@@ -22,6 +25,9 @@ public class PluginBasedStreamingAgentService {
     private final ToolExecutor toolExecutor;
     private final MemoryService memoryService;
     private final LLMService llmService;
+    private final RagService ragService;
+    private final CodeQuestionDetector codeQuestionDetector;
+    private final WorkspaceService workspaceService;
     private final String defaultProjectPath;
 
     public PluginBasedStreamingAgentService(
@@ -30,13 +36,52 @@ public class PluginBasedStreamingAgentService {
             ToolExecutor toolExecutor,
             MemoryService memoryService,
             LLMService llmService,
+            RagService ragService,
+            CodeQuestionDetector codeQuestionDetector,
+            WorkspaceService workspaceService,
             String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
         this.toolSelector = toolSelector;
         this.toolExecutor = toolExecutor;
         this.memoryService = memoryService;
         this.llmService = llmService;
+        this.ragService = ragService;
+        this.codeQuestionDetector = codeQuestionDetector;
+        this.workspaceService = workspaceService;
         this.defaultProjectPath = defaultProjectPath;
+    }
+
+    public PluginBasedStreamingAgentService(
+            ToolRegistry toolRegistry,
+            ToolSelector toolSelector,
+            ToolExecutor toolExecutor,
+            MemoryService memoryService,
+            LLMService llmService,
+            RagService ragService,
+            CodeQuestionDetector codeQuestionDetector,
+            String defaultProjectPath) {
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, null, defaultProjectPath);
+    }
+
+    public PluginBasedStreamingAgentService(
+            ToolRegistry toolRegistry,
+            ToolSelector toolSelector,
+            ToolExecutor toolExecutor,
+            MemoryService memoryService,
+            LLMService llmService,
+            RagService ragService,
+            String defaultProjectPath) {
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, null, null, defaultProjectPath);
+    }
+
+    public PluginBasedStreamingAgentService(
+            ToolRegistry toolRegistry,
+            ToolSelector toolSelector,
+            ToolExecutor toolExecutor,
+            MemoryService memoryService,
+            LLMService llmService,
+            String defaultProjectPath) {
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, null, null, null, defaultProjectPath);
     }
 
     public Flux<AgentEvent> executeStream(ChatRequest request) {
@@ -73,7 +118,25 @@ public class PluginBasedStreamingAgentService {
         memoryService.saveShortTerm(sessionId, "projectPath", projectPath);
         sink.tryEmitNext(AgentEvent.memoryWrite("Saved user request to short-term memory"));
 
-        // Phase 1: Tool Selection (LLM decides which tool to use)
+        // Ensure workspace is open for the current project (required for RAG retrieval)
+        if (workspaceService != null) {
+            try {
+                workspaceService.openWorkspace(projectPath);
+            } catch (Exception e) {
+                // workspace open failure should not abort the agent
+            }
+        }
+
+        // Phase 1: RAG Trigger (deterministic, independent of tool selection)
+        String ragContext = "";
+        if (codeQuestionDetector != null && codeQuestionDetector.needsRag(userMessage) && ragService != null) {
+            ragContext = ragService.retrieveContext(userMessage);
+            if (!ragContext.isBlank()) {
+                sink.tryEmitNext(AgentEvent.ragRead(ragContext));
+            }
+        }
+
+        // Phase 2: Tool Selection (LLM decides which tool to use)
         sink.tryEmitNext(AgentEvent.planning("Analyzing request and selecting appropriate tool..."));
         sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
 
@@ -88,17 +151,17 @@ public class PluginBasedStreamingAgentService {
 
         if (selection.isNone()) {
             sink.tryEmitNext(AgentEvent.thinking("No tool needed, providing direct answer..."));
-            String answer = generateDirectAnswer(userMessage);
+            String answer = generateDirectAnswer(userMessage, ragContext);
             sink.tryEmitNext(AgentEvent.finalAnswer(answer));
             return;
         }
 
-        // Phase 2: Tool Execution with Self-Healing
+        // Phase 3: Tool Execution with Self-Healing
         ToolExecutor.ToolExecutionResult finalResult = executeWithSelfHealing(
-                selection, userMessage, projectPath, sink);
+                selection, userMessage, projectPath, sink, ragContext);
 
-        // Phase 3: Generate Final Answer
-        String summary = buildSummary(userMessage, selection, finalResult);
+        // Phase 4: Generate Final Answer
+        String summary = buildSummary(userMessage, selection, finalResult, ragContext);
         sink.tryEmitNext(AgentEvent.finalAnswer(summary));
 
         // Final memory update
@@ -113,7 +176,8 @@ public class PluginBasedStreamingAgentService {
             ToolSelector.ToolSelection selection,
             String userMessage,
             String projectPath,
-            Sinks.Many<AgentEvent> sink) {
+            Sinks.Many<AgentEvent> sink,
+            String ragContext) {
 
         String currentInput = selection.input();
         ToolExecutor.ToolExecutionResult lastResult = null;
@@ -231,20 +295,40 @@ public class PluginBasedStreamingAgentService {
         return extracted;
     }
 
-    private String generateDirectAnswer(String userMessage) {
-        String prompt = """
-                You are a helpful coding assistant. The user asked:
+    private String generateDirectAnswer(String userMessage, String ragContext) {
+        String prompt;
+        if (ragContext != null && !ragContext.isBlank()) {
+            prompt = """
+                    You are a helpful coding assistant. The user asked:
 
-                %s
+                    %s
 
-                Please provide a direct answer without using any tools.
-                """.formatted(userMessage);
+                    Here are relevant code snippets from the workspace (with file path and line numbers):
+
+                    %s
+
+                    Use these snippets to answer accurately. Reference paths and line numbers when relevant.
+                    """.formatted(userMessage, ragContext);
+        } else {
+            prompt = """
+                    You are a helpful coding assistant. The user asked:
+
+                    %s
+
+                    Please provide a direct answer without using any tools.
+                    """.formatted(userMessage);
+        }
 
         LLMService.LLMResponse response = llmService.chat(prompt);
-        return response.content() != null ? response.content() : "I couldn't generate a response.";
+        return stripThinking(response.content() != null ? response.content() : "I couldn't generate a response.");
     }
 
-    private String buildSummary(String userMessage, ToolSelector.ToolSelection selection, ToolExecutor.ToolExecutionResult result) {
+    private String stripThinking(String text) {
+        if (text == null) return "";
+        return text.replaceAll("(?s)<think>.*?</think>", "").trim();
+    }
+
+    private String buildSummary(String userMessage, ToolSelector.ToolSelection selection, ToolExecutor.ToolExecutionResult result, String ragContext) {
         StringBuilder sb = new StringBuilder();
         sb.append("=== Execution Summary ===\n\n");
         sb.append("User request: ").append(userMessage).append("\n\n");
@@ -254,6 +338,9 @@ public class PluginBasedStreamingAgentService {
             sb.append("\nOutput preview:\n").append(truncateResult(result.output(), 500));
         } else {
             sb.append("\nError: ").append(result.error());
+        }
+        if (ragContext != null && !ragContext.isBlank()) {
+            sb.append("\n\n--- Related Code ---\n").append(truncateResult(ragContext, 500));
         }
         return sb.toString();
     }
