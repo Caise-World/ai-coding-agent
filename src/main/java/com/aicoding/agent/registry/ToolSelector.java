@@ -45,32 +45,74 @@ public class ToolSelector {
         return """
                 You are a tool selector. Pick ONE tool or NONE.
 
-                Tool decision rules (in priority order):
-                1. If the message is a greeting, general question, or conceptual explanation → NONE
-                2. If the message asks to WRITE or CREATE a file → FileWriteTool
-                3. If the message asks to READ or VIEW a specific file → FileReadTool
-                4. If the message asks to SEARCH/FIND code matching a pattern → GrepTool
-                5. If the message asks to RUN or EXECUTE a command → CommandExecuteTool
-                6. If the message asks about project structure / listing files → ProjectScanTool
-                7. Otherwise → NONE
+                Apply the rules IN ORDER. STOP at the first match.
+
+                RULE 1 — Greeting, thanks, or farewell → NONE
+                  Match: 你好 / 谢谢 / 再见 / hello / hi / thanks / bye / 你是谁
+                  Examples:
+                    "你好，你是谁？" → NONE
+                    "hello, how are you doing today?" → NONE
+                    "谢谢你的帮助" → NONE
+
+                RULE 2 — READ a specific file (must include a filename WITH extension) → FileReadTool
+                  Match: 读取 / 查看 / 打开 / 显示 / read / view + filename ending in .java / .yml / .yaml / .xml / .md / .properties / .json / .txt
+                  Examples:
+                    "读取 pom.xml 文件的内容" → FileReadTool
+                    "read the file CLAUDE.md" → FileReadTool
+                    "帮我看下 application.yml 里配置了什么" → FileReadTool
+                    "查看 AgentApplication.java 的源代码" → FileReadTool
+
+                RULE 3 — RUN a system command → CommandExecuteTool
+                  Match: a recognizable system command name (git / mvn / npm / yarn / docker / kubectl / curl / wget / ps / ls / top / ssh / scp / rsync / brew / apt / yum / pip / gradle), OR 执行 / 运行 / 跑 / run + a shell command
+                  This rule fires ONLY on explicit command execution. It does NOT cover abstract questions about versions, principles, or mechanisms.
+                  Examples:
+                    "执行 mvn clean compile 命令" → CommandExecuteTool
+                    "run git status to see what files changed" → CommandExecuteTool
+                    "帮我查看当前 maven 的版本" → CommandExecuteTool (mvn is a system command)
+
+                RULE 4 — Code understanding question (How / What / Why / Explain) → NONE
+                  Match: 怎么 / 什么 / 为什么 / 如何 / 工作原理 / 调用链 / 自愈 / 设计 / 区别 / 原理 / 解释 / 是怎么 / 做什么
+                  This is the SEMANTIC FALLBACK for code understanding. It does NOT participate in tool routing — it only catches questions where the user wants explanation, not file/system action.
+                  When this rule matches, output NONE (RAG handles the explanation).
+                  Excludes 哪里 — used in search context ("find where X is used") is not an understanding question.
+                  Examples:
+                    "PluginBasedStreamingAgentService 怎么实现自愈" → NONE
+                    "PluginBasedStreamingAgentService 工作原理" → NONE
+                    "PluginBasedStreamingAgentService 做什么" → NONE
+                    "PluginBasedStreamingAgentService 自愈机制" → NONE
+                    "PluginBasedStreamingAgentService 调用链" → NONE
+                    "PluginBasedStreamingAgentService 为什么这样设计" → NONE
+                    "MemoryService 怎么存长期记忆" → NONE
+                    "什么是 Spring Boot" → NONE
+                    "Java 和 Python 有什么区别" → NONE
+
+                RULE 5 — WRITE or CREATE a file → FileWriteTool
+                  Match: 写 / 创建 / 生成 / 保存 / write / create / generate
+                  Examples:
+                    "帮我创建一个新的 Java 类 HelloWorld.java" → FileWriteTool
+                    "write a README.md file" → FileWriteTool
+                    "生成一个 application.properties 配置文件" → FileWriteTool
+
+                RULE 6 — SEARCH or FIND files matching a text pattern (PURE text retrieval) → GrepTool
+                  Match: 搜索 / 查找 / 找出 / 搜 / search / find / locate + a search pattern
+                  This rule fires ONLY when there is NO understanding question word in the message. If the message contains 怎么 / 什么 / 为什么 / 如何 / 原理 / 机制 / 区别 / 解释, Rule 4 wins → NONE. The search verb alone does not override an understanding question.
+                  Examples:
+                    "搜索 src/main/java 里包含 ToolSelector 的文件" → GrepTool
+                    "find all Java files containing ToolRegistry" → GrepTool
+                    "在项目里搜一下哪里用了 @PostConstruct" → GrepTool (哪里 is excluded from Rule 4 — pure search context)
+
+                RULE 7 — LIST project structure or directory contents → ProjectScanTool
+                  Match: 列出 / 项目结构 / 目录结构 / 整体布局 / scan / list + project reference
+                  Examples:
+                    "帮我分析这个项目的目录结构" → ProjectScanTool
+                    "scan the project structure and list all files" → ProjectScanTool
+                    "列出项目里所有的文件和文件夹" → ProjectScanTool
+                    "看看这个项目的整体布局" → ProjectScanTool
+
+                RULE 8 — Otherwise → NONE
 
                 Available tools:
                 %s
-
-                Examples:
-                "列出所有文件" → ProjectScanTool
-                "项目结构是什么" → ProjectScanTool
-                "读取 pom.xml" → FileReadTool
-                "查看 AgentApplication.java 的源代码" → FileReadTool
-                "帮我创建一个 HelloWorld.java" → FileWriteTool
-                "执行 mvn clean compile" → CommandExecuteTool
-                "搜索包含 ToolSelector 的 java 文件" → GrepTool
-                "PluginBasedStreamingAgentService 怎么实现自愈" → NONE
-                "MemoryService 怎么存长期记忆" → NONE
-                "Java 和 Python 有什么区别" → NONE
-                "你好，你是谁" → NONE
-                "什么是 Spring Boot" → NONE
-                "谢谢你的帮助" → NONE
 
                 Now classify this:
                 User message: %s
