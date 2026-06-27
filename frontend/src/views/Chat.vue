@@ -29,6 +29,8 @@
         </div>
       </header>
 
+      <WorkspaceOpener @workspace-changed="handleWorkspaceChanged" />
+
       <StreamViewer :events="events" />
 
       <InputBox
@@ -45,6 +47,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import StreamViewer from '../components/StreamViewer.vue'
 import InputBox from '../components/InputBox.vue'
+import WorkspaceOpener from '../components/WorkspaceOpener.vue'
 import { createAgentStreamPost } from '../api/agent.js'
 
 const sessions = ref([])
@@ -172,6 +175,10 @@ function stopGeneration() {
     currentStream = null
   }
   isStreaming.value = false
+}
+
+function handleWorkspaceChanged(workspace) {
+  console.log('Workspace changed:', workspace)
 }
 
 onMounted(() => {

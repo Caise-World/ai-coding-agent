@@ -1,36 +1,32 @@
 package com.aicoding.agent.registry;
 
-import com.aicoding.agent.tool.*;
+import com.aicoding.agent.tool.Tool;
 import jakarta.annotation.PostConstruct;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
+
 @Component
-public class ToolRegistrar {
+public class ToolRegistrar implements ApplicationContextAware {
 
     private final ToolRegistry toolRegistry;
-    private final ProjectScanTool projectScanTool;
-    private final FileReadTool fileReadTool;
-    private final FileWriteTool fileWriteTool;
-    private final CommandExecuteTool commandExecuteTool;
+    private ApplicationContext applicationContext;
 
-    public ToolRegistrar(
-            ToolRegistry toolRegistry,
-            ProjectScanTool projectScanTool,
-            FileReadTool fileReadTool,
-            FileWriteTool fileWriteTool,
-            CommandExecuteTool commandExecuteTool) {
+    public ToolRegistrar(ToolRegistry toolRegistry) {
         this.toolRegistry = toolRegistry;
-        this.projectScanTool = projectScanTool;
-        this.fileReadTool = fileReadTool;
-        this.fileWriteTool = fileWriteTool;
-        this.commandExecuteTool = commandExecuteTool;
+    }
+
+    @Override
+    public void setApplicationContext(ApplicationContext ctx) throws BeansException {
+        this.applicationContext = ctx;
     }
 
     @PostConstruct
     public void registerTools() {
-        toolRegistry.register(projectScanTool);
-        toolRegistry.register(fileReadTool);
-        toolRegistry.register(fileWriteTool);
-        toolRegistry.register(commandExecuteTool);
+        Map<String, Tool> beans = applicationContext.getBeansOfType(Tool.class);
+        beans.values().forEach(toolRegistry::register);
     }
 }

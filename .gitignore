@@ -23,6 +23,12 @@ application-secrets.yml
 ### Agent Memory (runtime data) ###
 /memory/
 
+### RAG runtime cache ###
+.rag-cache/
+
+### Stray debug artifacts ###
+/filePath
+
 ### Frontend ###
 frontend/node_modules/
 frontend/dist/

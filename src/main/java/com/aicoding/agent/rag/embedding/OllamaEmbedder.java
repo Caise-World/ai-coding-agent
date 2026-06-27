@@ -47,12 +47,16 @@ public class OllamaEmbedder {
         for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
             try {
                 float[] result = doEmbed(text);
-                if (isFinite(result)) {
+                if (!isFinite(result)) {
+                    log.warn("Ollama returned non-finite embedding (attempt {}/{}) for text of length {}, dim={}",
+                            attempt, MAX_RETRIES, text.length(), result.length);
+                    lastError = new RuntimeException("Non-finite values in embedding response");
+                } else {
+                    if (result.length != dimension) {
+                        log.info("Embedding dim mismatch: returned={} expected={}", result.length, dimension);
+                    }
                     return result;
                 }
-                log.warn("Ollama returned non-finite embedding (attempt {}/{}) for text of length {}",
-                        attempt, MAX_RETRIES, text.length());
-                lastError = new RuntimeException("Non-finite values in embedding response");
             } catch (RuntimeException e) {
                 log.warn("Ollama embed attempt {}/{} failed: {}", attempt, MAX_RETRIES, e.getMessage());
                 lastError = e;

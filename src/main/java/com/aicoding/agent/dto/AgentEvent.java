@@ -88,6 +88,10 @@ public class AgentEvent {
         return new AgentEvent("MAX_RETRIES_EXCEEDED", String.format("Exceeded maximum retry attempts (%d)", maxAttempts));
     }
 
+    public static AgentEvent ragRead(String content) {
+        return new AgentEvent("RAG_READ", truncate(content, 2000));
+    }
+
     private static String truncate(String str, int maxLen) {
         if (str == null) return "null";
         if (str.length() <= maxLen) return str;

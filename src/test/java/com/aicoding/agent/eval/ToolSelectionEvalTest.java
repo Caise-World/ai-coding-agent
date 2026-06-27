@@ -45,17 +45,24 @@ class ToolSelectionEvalTest {
             ToolSelector.ToolSelection result = toolSelector.select(c.input(), PROJECT_PATH);
 
             String actual = result.toolName() != null ? result.toolName() : "NONE";
-            boolean ok = c.matches(actual);
+            boolean toolOk = c.matches(actual);
+            boolean ragOk = c.matchesRag(result.needsRag());
+            boolean ok = toolOk && ragOk;
 
             String marker = ok ? "PASS" : "FAIL";
             System.out.printf("  [%s] #%d  input: \"%s\"%n", marker, i + 1, c.input());
-            System.out.printf("        expected: %-20s  actual: %s%n%n", c.expectedTool(), actual);
+            System.out.printf("        tool:    expected=%-18s  actual=%s%n", c.expectedTool(), actual);
+            if (c.expectedNeedsRag() != null) {
+                System.out.printf("        needsRag: expected=%-17s  actual=%s%n",
+                        c.expectedNeedsRag(), result.needsRag());
+            }
 
             if (ok) {
                 passed++;
             } else {
-                failures.add(String.format("#%d \"%s\" → expected=%s actual=%s",
-                        i + 1, c.input(), c.expectedTool(), actual));
+                String reason = !toolOk ? "tool mismatch" : "needsRag mismatch";
+                failures.add(String.format("#%d \"%s\" → expected=%s actual=%s (%s)",
+                        i + 1, c.input(), c.expectedTool(), actual, reason));
             }
         }
 

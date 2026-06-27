@@ -22,6 +22,9 @@
           <template v-else-if="event.type === 'TOOL_RESULT'">
             <!-- Tool result is displayed within ToolCallPanel -->
           </template>
+          <template v-else-if="event.type === 'RAG_READ'">
+            <RagContextPanel :content="event.content" />
+          </template>
           <template v-else>
             <ChatMessage :type="event.type" :content="event.content" />
           </template>
@@ -36,6 +39,7 @@
 import { ref, watch, nextTick } from 'vue'
 import ChatMessage from './ChatMessage.vue'
 import ToolCallPanel from './ToolCallPanel.vue'
+import RagContextPanel from './RagContextPanel.vue'
 
 const props = defineProps({
   events: { type: Array, default: () => [] }
@@ -62,6 +66,7 @@ function getMarker(type) {
     REPAIR: '🔧',
     RETRY: '🔄',
     MAX_RETRIES_EXCEEDED: '⛔',
+    RAG_READ: '🔍',
     FINAL: '✨',
     ERROR: '❌'
   }
@@ -171,6 +176,10 @@ watch(() => props.events, (events) => {
 
 .marker-max_retries_exceeded {
   background: #dc2626;
+}
+
+.marker-rag_read {
+  background: #3b82f6;
 }
 
 .timeline-content {

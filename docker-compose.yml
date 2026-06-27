@@ -1,0 +1,43 @@
+services:
+  backend:
+    build: .
+    container_name: agent-backend
+    ports:
+      - "8082:8082"
+    environment:
+      - MINIMAX_API_KEY=${MINIMAX_API_KEY}
+      - MINIMAX_BASE_URL=${MINIMAX_BASE_URL:-https://api.minimax.chat/v1}
+      - MINIMAX_MODEL=${MINIMAX_MODEL:-minimax-m2.7}
+      - AGENT_PROJECT_PATH=/workspace
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      - RAG_CACHE_DIR=/workspace/.rag-cache
+    volumes:
+      - agent-workspace:/workspace
+    depends_on:
+      - ollama
+
+  frontend:
+    build: ./frontend
+    container_name: agent-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: agent-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+    # First run: docker compose up ollama -d && docker exec -it agent-ollama ollama pull nomic-embed-text
+
+volumes:
+  agent-workspace:
+  ollama-data:
