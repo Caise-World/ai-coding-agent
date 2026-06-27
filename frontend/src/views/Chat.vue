@@ -56,12 +56,14 @@ const events = ref([])
 const isStreaming = ref(false)
 const inputBoxRef = ref(null)
 let currentStream = null
+let streamingForSessionId = null
 
 function generateSessionName(message) {
   return message.substring(0, 30) + (message.length > 30 ? '...' : '')
 }
 
 function createNewSession() {
+  stopCurrentStream()
   const id = Date.now().toString()
   sessions.value.unshift({ id, name: 'New Chat', messages: [] })
   currentSessionId.value = id
@@ -69,9 +71,20 @@ function createNewSession() {
 }
 
 function selectSession(id) {
+  if (id === currentSessionId.value) return
+  stopCurrentStream()
   currentSessionId.value = id
   const session = sessions.value.find(s => s.id === id)
   events.value = session?.messages || []
+}
+
+function stopCurrentStream() {
+  if (currentStream) {
+    currentStream.abort()
+    currentStream = null
+  }
+  isStreaming.value = false
+  streamingForSessionId = null
 }
 
 function deleteSession(id) {
@@ -96,6 +109,9 @@ function handleSubmit(message) {
   console.log('handleSubmit called:', message)
   if (!message.trim()) return
 
+  // Abort any running stream from the current session before starting a new one
+  stopCurrentStream()
+
   if (!currentSessionId.value) {
     createNewSession()
   }
@@ -108,9 +124,10 @@ function handleSubmit(message) {
 
   events.value.push({ type: 'USER', content: message })
   isStreaming.value = true
+  streamingForSessionId = currentSessionId.value
 
   currentStream = createAgentStreamPost(message)
-  console.log('Starting stream...')
+  console.log('Starting stream for session:', streamingForSessionId)
   currentStream.start(
     (data) => {
       console.log('Received data:', data)
@@ -119,6 +136,7 @@ function handleSubmit(message) {
     (err) => {
       console.error('Stream error:', err)
       isStreaming.value = false
+      streamingForSessionId = null
       events.value.push({ type: 'ERROR', content: 'Connection error: ' + err.message })
     }
   )
@@ -126,6 +144,10 @@ function handleSubmit(message) {
 
 function handleStreamEvent(data) {
   console.log('handleStreamEvent:', data)
+  // Discard events if user switched to a different session
+  if (streamingForSessionId && streamingForSessionId !== currentSessionId.value) {
+    return
+  }
   const event = {
     type: data.type || data.eventType || 'UNKNOWN',
     content: data.content || data.message || '',
@@ -151,7 +173,10 @@ function handleStreamEvent(data) {
   }
 
   if (event.type === 'FINAL' || event.type === 'ERROR') {
-    isStreaming.value = false
+    if (streamingForSessionId === currentSessionId.value) {
+      isStreaming.value = false
+      streamingForSessionId = null
+    }
     saveSession()
   }
 }
@@ -170,11 +195,7 @@ function saveSession() {
 }
 
 function stopGeneration() {
-  if (currentStream) {
-    currentStream.abort()
-    currentStream = null
-  }
-  isStreaming.value = false
+  stopCurrentStream()
 }
 
 function handleWorkspaceChanged(workspace) {
@@ -189,9 +210,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  if (currentStream) {
-    currentStream.abort()
-  }
+  stopCurrentStream()
 })
 </script>
 
