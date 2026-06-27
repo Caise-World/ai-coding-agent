@@ -388,23 +388,10 @@ class DeterministicRouterTest {
     }
 
     @Test void r6_cookingQuestion_notFileWrite() {
-        // "怎么做蛋糕" — has "做" but not a file write context
-        // FILE_WRITE_VERB has "写|创建|生成|保存|write|create|generate|save"
-        // "做" is NOT in FILE_WRITE_VERB
-        // CODE_GEN_VERB: 给一下|给我|写一段|写一个|输出一段|给我一个|给一段 — "做" is NOT in here either
-        // R4: needsRag("怎么做蛋糕") — pattern 2: 怎么\s*做 — wait, 做 is not in the verb list (实现|定义|工作|调用|写|用|调)
-        // Pattern 10: 做(什么|啥)(的)? — "怎么做" - "做" then "怎么"? No, "做(什么|啥)" matches "做什么" or "做啥", not "怎么做"
-        // So R4: needsRag checks pattern 2: (怎么|如何|怎样)\s*(实现|定义|工作|调用|写|用|调) — "怎么" matches, then \s*, then "做" - 做 is NOT in the verb list. No match.
-        // Pattern 10: 做(什么|啥)(的)? — starts with "做" and expects 什么 or 啥. "怎么做蛋糕" — "做" then "怎" - doesn't match 什么|啥
-        // So needsRag returns false → R4 doesn't fire
-        // R5: CODE_GEN_VERB — "做" not in the list
-        // R6: FILE_WRITE_VERB — "做" not in the list → R6 doesn't fire
-        // R7: SEARCH_VERB — no
-        // R8: PROJECT_SCAN_VERB — no
-        // → AMBIGUOUS
+        // Pure chat question — zero code signals → R9 → NONE
         var r = router.classify("怎么做蛋糕", PROJECT);
-        assertTrue(r.ambiguous());
-        assertEquals("AMBIGUOUS", r.toolName());
+        assertFalse(r.ambiguous());
+        assertEquals("NONE", r.toolName());
     }
 
     // ─── R7: Text Search → GrepTool ───────────────────────────
@@ -474,6 +461,26 @@ class DeterministicRouterTest {
         var r = router.classify("list the project directory", PROJECT);
         assertFalse(r.ambiguous());
         assertEquals("ProjectScanTool", r.toolName());
+    }
+
+    // ─── R9: Likely Chat → NONE (zero code signals) ───────────
+
+    @Test void r9_astrologyQuestion_directAnswer() {
+        var r = router.classify("你觉得双子座的女生怎么样才会喜欢上一个男生", PROJECT);
+        assertFalse(r.ambiguous());
+        assertEquals("NONE", r.toolName());
+    }
+
+    @Test void r9_pureChineseChat_directAnswer() {
+        var r = router.classify("今天天气真好", PROJECT);
+        assertFalse(r.ambiguous());
+        assertEquals("NONE", r.toolName());
+    }
+
+    @Test void r9_emotionalQuestion_directAnswer() {
+        var r = router.classify("双子座的女生总是忽冷忽热的", PROJECT);
+        assertFalse(r.ambiguous());
+        assertEquals("NONE", r.toolName());
     }
 
     // ─── AMBIGUOUS → ToolSelector fallback ────────────────────

@@ -132,6 +132,11 @@ public class DeterministicRouter {
             return new RouterResult("ProjectScanTool", projectPath, false);
         }
 
+        // R9: Likely Chat — no code signals at all → NONE
+        if (!hasAnyCodeSignal(userMessage)) {
+            return new RouterResult("NONE", userMessage, false);
+        }
+
         // Final: AMBIGUOUS — fall back to ToolSelector
         return RouterResult.ambiguous(userMessage);
     }
@@ -232,6 +237,26 @@ public class DeterministicRouter {
 
     private boolean hasFileWriteVerb(String message) {
         return FILE_WRITE_VERB_CN.matcher(message).find() || FILE_WRITE_VERB_EN.matcher(message).find();
+    }
+
+    // ─── R9: Likely Chat Signal ────────────────────────────────
+
+    /**
+     * Returns true if the message contains ANY code-related signal.
+     * Used by R9 to short-circuit chat questions to NONE without any LLM call.
+     */
+    private static final Pattern LATIN_LETTERS = Pattern.compile("[a-zA-Z]");
+    private static final Pattern CODE_KEYWORDS_CN = Pattern.compile(
+            "(代码|项目|文件|源码|程序|接口|类|方法|函数|依赖|配置|编译|部署|调试|架构|性能|日志|系统|库)");
+
+    private boolean hasAnyCodeSignal(String message) {
+        if (CODE_FILE_EXT.matcher(message).find()) return true;
+        if (COMMAND_NAME.matcher(message).find()) return true;
+        // Any Latin letters suggest code-related content (class names, file names, tech terms)
+        if (LATIN_LETTERS.matcher(message).find()) return true;
+        // Code-related Chinese keywords
+        if (CODE_KEYWORDS_CN.matcher(message).find()) return true;
+        return false;
     }
 
     // ─── Router Result ────────────────────────────────────────

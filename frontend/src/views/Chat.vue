@@ -108,6 +108,8 @@ function clearHistory() {
 function handleSubmit(message) {
   console.log('handleSubmit called:', message)
   if (!message.trim()) return
+  // Guard against double-submission (Enter + click firing simultaneously)
+  if (isStreaming.value) return
 
   // Abort any running stream from the current session before starting a new one
   stopCurrentStream()
