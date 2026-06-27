@@ -5,6 +5,7 @@ import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.memory.MemoryService;
 import com.aicoding.agent.rag.RagService;
 import com.aicoding.agent.rag.routing.CodeQuestionDetector;
+import com.aicoding.agent.rag.routing.DeterministicRouter;
 import com.aicoding.agent.rag.workspace.WorkspaceService;
 import com.aicoding.agent.registry.ToolExecutor;
 import com.aicoding.agent.registry.ToolRegistry;
@@ -26,6 +27,7 @@ public class StreamingAgentController {
     private final LLMService llmService;
     private final RagService ragService;
     private final CodeQuestionDetector codeQuestionDetector;
+    private final DeterministicRouter deterministicRouter;
     private final WorkspaceService workspaceService;
     private final String defaultProjectPath;
 
@@ -37,6 +39,7 @@ public class StreamingAgentController {
             LLMService llmService,
             RagService ragService,
             CodeQuestionDetector codeQuestionDetector,
+            DeterministicRouter deterministicRouter,
             WorkspaceService workspaceService,
             @Value("${agent.project-path}") String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
@@ -46,6 +49,7 @@ public class StreamingAgentController {
         this.llmService = llmService;
         this.ragService = ragService;
         this.codeQuestionDetector = codeQuestionDetector;
+        this.deterministicRouter = deterministicRouter;
         this.workspaceService = workspaceService;
         this.defaultProjectPath = defaultProjectPath;
     }
@@ -65,6 +69,7 @@ public class StreamingAgentController {
                 llmService,
                 ragService,
                 codeQuestionDetector,
+                deterministicRouter,
                 workspaceService,
                 defaultProjectPath
         );
@@ -82,6 +87,7 @@ public class StreamingAgentController {
                 llmService,
                 ragService,
                 codeQuestionDetector,
+                deterministicRouter,
                 workspaceService,
                 defaultProjectPath
         );

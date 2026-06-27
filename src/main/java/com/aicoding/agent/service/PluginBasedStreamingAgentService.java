@@ -6,6 +6,7 @@ import com.aicoding.agent.memory.MemoryService;
 import com.aicoding.agent.model.*;
 import com.aicoding.agent.rag.RagService;
 import com.aicoding.agent.rag.routing.CodeQuestionDetector;
+import com.aicoding.agent.rag.routing.DeterministicRouter;
 import com.aicoding.agent.rag.workspace.WorkspaceService;
 import com.aicoding.agent.registry.ToolExecutor;
 import com.aicoding.agent.registry.ToolRegistry;
@@ -27,6 +28,7 @@ public class PluginBasedStreamingAgentService {
     private final LLMService llmService;
     private final RagService ragService;
     private final CodeQuestionDetector codeQuestionDetector;
+    private final DeterministicRouter deterministicRouter;
     private final WorkspaceService workspaceService;
     private final String defaultProjectPath;
 
@@ -38,6 +40,7 @@ public class PluginBasedStreamingAgentService {
             LLMService llmService,
             RagService ragService,
             CodeQuestionDetector codeQuestionDetector,
+            DeterministicRouter deterministicRouter,
             WorkspaceService workspaceService,
             String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
@@ -47,6 +50,7 @@ public class PluginBasedStreamingAgentService {
         this.llmService = llmService;
         this.ragService = ragService;
         this.codeQuestionDetector = codeQuestionDetector;
+        this.deterministicRouter = deterministicRouter;
         this.workspaceService = workspaceService;
         this.defaultProjectPath = defaultProjectPath;
     }
@@ -59,8 +63,21 @@ public class PluginBasedStreamingAgentService {
             LLMService llmService,
             RagService ragService,
             CodeQuestionDetector codeQuestionDetector,
+            DeterministicRouter deterministicRouter,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, deterministicRouter, null, defaultProjectPath);
+    }
+
+    public PluginBasedStreamingAgentService(
+            ToolRegistry toolRegistry,
+            ToolSelector toolSelector,
+            ToolExecutor toolExecutor,
+            MemoryService memoryService,
+            LLMService llmService,
+            RagService ragService,
+            CodeQuestionDetector codeQuestionDetector,
+            String defaultProjectPath) {
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, null, null, defaultProjectPath);
     }
 
     public PluginBasedStreamingAgentService(
@@ -71,7 +88,7 @@ public class PluginBasedStreamingAgentService {
             LLMService llmService,
             RagService ragService,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, null, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, null, null, null, defaultProjectPath);
     }
 
     public PluginBasedStreamingAgentService(
@@ -81,7 +98,7 @@ public class PluginBasedStreamingAgentService {
             MemoryService memoryService,
             LLMService llmService,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, null, null, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, null, null, null, null, defaultProjectPath);
     }
 
     public Flux<AgentEvent> executeStream(ChatRequest request) {
@@ -136,12 +153,26 @@ public class PluginBasedStreamingAgentService {
             }
         }
 
-        // Phase 2: Tool Selection (LLM decides which tool to use)
+        // Phase 2: Tool Selection (deterministic router → LLM fallback)
         sink.tryEmitNext(AgentEvent.planning("Analyzing request and selecting appropriate tool..."));
-        sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
 
-        ToolSelector.ToolSelection selection = toolSelector.select(userMessage, projectPath);
-        sink.tryEmitNext(AgentEvent.thinking("LLM selected tool: " + selection.toolName()));
+        ToolSelector.ToolSelection selection;
+        if (deterministicRouter != null) {
+            DeterministicRouter.RouterResult routing = deterministicRouter.classify(userMessage, projectPath);
+            if (!routing.ambiguous()) {
+                sink.tryEmitNext(AgentEvent.thinking("Deterministic routing: " + routing.toolName()));
+                selection = new ToolSelector.ToolSelection(routing.toolName(), routing.input(), null);
+            } else {
+                sink.tryEmitNext(AgentEvent.thinking("Ambiguous input, using LLM routing..."));
+                sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
+                selection = toolSelector.select(userMessage, projectPath);
+                sink.tryEmitNext(AgentEvent.thinking("LLM selected tool: " + selection.toolName()));
+            }
+        } else {
+            sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
+            selection = toolSelector.select(userMessage, projectPath);
+            sink.tryEmitNext(AgentEvent.thinking("LLM selected tool: " + selection.toolName()));
+        }
 
         if (selection.hasError()) {
             sink.tryEmitNext(AgentEvent.error("Tool selection failed: " + selection.error()));

@@ -17,28 +17,56 @@ public class LLMService {
     private final String apiKey;
     private final String model;
     private final String baseUrl;
+    private final String fallbackApiKey;
+    private final String fallbackModel;
+    private final String fallbackBaseUrl;
     private final ObjectMapper objectMapper;
 
     public LLMService(
             RestTemplate restTemplate,
             @Value("${llm.api-key}") String apiKey,
             @Value("${llm.model}") String model,
-            @Value("${llm.base-url}") String baseUrl) {
+            @Value("${llm.base-url}") String baseUrl,
+            @Value("${llm.fallback.api-key}") String fallbackApiKey,
+            @Value("${llm.fallback.model}") String fallbackModel,
+            @Value("${llm.fallback.base-url}") String fallbackBaseUrl) {
         this.restTemplate = restTemplate;
         this.apiKey = apiKey;
         this.model = model;
         this.baseUrl = baseUrl;
+        this.fallbackApiKey = fallbackApiKey;
+        this.fallbackModel = fallbackModel;
+        this.fallbackBaseUrl = fallbackBaseUrl;
         this.objectMapper = new ObjectMapper();
     }
 
     public LLMResponse chat(String prompt) {
+        LLMResponse primary = call(baseUrl, apiKey, model, prompt);
+        if (primary.error() == null) {
+            return primary;
+        }
+
+        if (fallbackApiKey == null || fallbackApiKey.isBlank()) {
+            return primary;
+        }
+
+        LLMResponse fallback = call(fallbackBaseUrl, fallbackApiKey, fallbackModel, prompt);
+        if (fallback.error() == null) {
+            return fallback;
+        }
+
+        return new LLMResponse(null,
+                "Primary: " + primary.error() + " | Fallback: " + fallback.error());
+    }
+
+    private LLMResponse call(String url, String key, String modelName, String prompt) {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
+            headers.setBearerAuth(key);
 
             ObjectNode requestBody = objectMapper.createObjectNode();
-            requestBody.put("model", model);
+            requestBody.put("model", modelName);
 
             ArrayNode messages = objectMapper.createArrayNode();
             ObjectNode userMsg = objectMapper.createObjectNode();
@@ -50,8 +78,8 @@ public class LLMService {
 
             HttpEntity<String> entity = new HttpEntity<>(objectMapper.writeValueAsString(requestBody), headers);
 
-            String url = baseUrl + "/chat/completions";
-            ResponseEntity<String> response = restTemplate.exchange(url, HttpMethod.POST, entity, String.class);
+            String fullUrl = url + "/chat/completions";
+            ResponseEntity<String> response = restTemplate.exchange(fullUrl, HttpMethod.POST, entity, String.class);
 
             return parseResponse(response.getBody());
         } catch (Exception e) {
