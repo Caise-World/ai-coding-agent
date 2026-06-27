@@ -90,10 +90,13 @@ public class ToolSelector {
 
                 RULE 5 — WRITE or CREATE a file → FileWriteTool
                   Match: 写 / 创建 / 生成 / 保存 / write / create / generate
+                  This rule fires ONLY when the user requests content be saved to a specific file. Code generation requests ("给代码", "写一段算法") without a named file path → NONE (Rule 4 or Rule 8 — explain or output code directly, not a file write).
                   Examples:
                     "帮我创建一个新的 Java 类 HelloWorld.java" → FileWriteTool
                     "write a README.md file" → FileWriteTool
                     "生成一个 application.properties 配置文件" → FileWriteTool
+                    "给一下快速排序的代码" → NONE
+                    "给我一个 Java 快速排序的实现" → NONE
 
                 RULE 6 — SEARCH or FIND files matching a text pattern (PURE text retrieval) → GrepTool
                   Match: 搜索 / 查找 / 找出 / 搜 / search / find / locate + a search pattern
