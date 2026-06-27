@@ -79,6 +79,13 @@ function selectSession(id) {
 }
 
 function stopCurrentStream() {
+  // Persist current events to the session before aborting
+  if (currentSessionId.value) {
+    const session = sessions.value.find(s => s.id === currentSessionId.value)
+    if (session) {
+      session.messages = [...events.value]
+    }
+  }
   if (currentStream) {
     currentStream.abort()
     currentStream = null
