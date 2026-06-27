@@ -85,6 +85,8 @@ public class ToolSelector {
                     "MemoryService 怎么存长期记忆" → NONE
                     "什么是 Spring Boot" → NONE
                     "Java 和 Python 有什么区别" → NONE
+                    "当前的项目主要是做什么的" → NONE
+                    "这个项目主要做什么" → NONE
 
                 RULE 5 — WRITE or CREATE a file → FileWriteTool
                   Match: 写 / 创建 / 生成 / 保存 / write / create / generate
@@ -103,6 +105,8 @@ public class ToolSelector {
 
                 RULE 7 — LIST project structure or directory contents → ProjectScanTool
                   Match: 列出 / 项目结构 / 目录结构 / 整体布局 / scan / list + project reference
+                  This rule fires ONLY when the user explicitly asks for directory layout or file listing. If the message contains any understanding question word (怎么 / 什么 / 为什么 / 如何 / 做什么 / 原理 / 机制 / 区别 / 解释), Rule 4 wins → NONE.
+                  A reference to "项目" (project) alone is NOT enough — the message must ask for the structure/layout, not explain what the project does.
                   Examples:
                     "帮我分析这个项目的目录结构" → ProjectScanTool
                     "scan the project structure and list all files" → ProjectScanTool

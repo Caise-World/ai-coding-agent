@@ -51,7 +51,13 @@ public class CodeQuestionDetector {
 
             // 9. CamelCase identifier (catches class names that don't end with
             //    standard suffixes, e.g. ToolSelector, AgentEvent, RagService)
-            Pattern.compile("\\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\\b")
+            Pattern.compile("\\b[A-Z][a-z]+[A-Z][A-Za-z0-9]*\\b"),
+
+            // 10. "做什么 / 做啥的" — common Chinese phrasing for "what does X do".
+            //     Excludes "怎么做" (cooking/crafting), which is captured by
+            //     pattern 2 with a different verb. The optional trailing "的"
+            //     catches "是做什么的".
+            Pattern.compile("做(什么|啥)(的)?")
     );
 
     public boolean needsRag(String userMessage) {
