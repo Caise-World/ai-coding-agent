@@ -2,6 +2,7 @@ package com.aicoding.agent.controller;
 
 import com.aicoding.agent.dto.AgentEvent;
 import com.aicoding.agent.dto.ChatRequest;
+import com.aicoding.agent.agent.AgenticLoopRunner;
 import com.aicoding.agent.memory.MemoryService;
 import com.aicoding.agent.rag.RagService;
 import com.aicoding.agent.rag.routing.CodeQuestionDetector;
@@ -29,6 +30,7 @@ public class StreamingAgentController {
     private final CodeQuestionDetector codeQuestionDetector;
     private final DeterministicRouter deterministicRouter;
     private final WorkspaceService workspaceService;
+    private final AgenticLoopRunner agenticLoopRunner;
     private final String defaultProjectPath;
 
     public StreamingAgentController(
@@ -41,6 +43,7 @@ public class StreamingAgentController {
             CodeQuestionDetector codeQuestionDetector,
             DeterministicRouter deterministicRouter,
             WorkspaceService workspaceService,
+            AgenticLoopRunner agenticLoopRunner,
             @Value("${agent.project-path}") String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
         this.toolSelector = toolSelector;
@@ -51,6 +54,7 @@ public class StreamingAgentController {
         this.codeQuestionDetector = codeQuestionDetector;
         this.deterministicRouter = deterministicRouter;
         this.workspaceService = workspaceService;
+        this.agenticLoopRunner = agenticLoopRunner;
         this.defaultProjectPath = defaultProjectPath;
     }
 
@@ -71,6 +75,7 @@ public class StreamingAgentController {
                 codeQuestionDetector,
                 deterministicRouter,
                 workspaceService,
+                agenticLoopRunner,
                 defaultProjectPath
         );
 
@@ -89,6 +94,7 @@ public class StreamingAgentController {
                 codeQuestionDetector,
                 deterministicRouter,
                 workspaceService,
+                agenticLoopRunner,
                 defaultProjectPath
         );
 

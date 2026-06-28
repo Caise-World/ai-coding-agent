@@ -22,6 +22,9 @@
       <header class="chat-header">
         <h1>AI Coding Agent</h1>
         <div class="header-actions">
+          <button class="theme-btn" @click="toggleTheme" :title="isLight ? 'Switch to dark' : 'Switch to light'">
+            {{ isLight ? '☀️' : '🌙' }}
+          </button>
           <button class="stop-btn" v-if="isStreaming" @click="stopGeneration">
             ■ Stop
           </button>
@@ -54,47 +57,72 @@ const sessions = ref([])
 const currentSessionId = ref(null)
 const events = ref([])
 const isStreaming = ref(false)
+const isLight = ref(false)
 const inputBoxRef = ref(null)
-let currentStream = null
+const sessionStreams = new Map()  // sessionId -> stream object
 let streamingForSessionId = null
+
+function applyTheme() {
+  document.documentElement.classList.toggle('light', isLight.value)
+}
+function toggleTheme() {
+  isLight.value = !isLight.value
+  applyTheme()
+  localStorage.setItem('theme', isLight.value ? 'light' : 'dark')
+}
 
 function generateSessionName(message) {
   return message.substring(0, 30) + (message.length > 30 ? '...' : '')
 }
 
-function createNewSession() {
-  stopCurrentStream()
-  const id = Date.now().toString()
-  sessions.value.unshift({ id, name: 'New Chat', messages: [] })
-  currentSessionId.value = id
-  events.value = []
-}
-
-function selectSession(id) {
-  if (id === currentSessionId.value) return
-  stopCurrentStream()
-  currentSessionId.value = id
-  const session = sessions.value.find(s => s.id === id)
-  events.value = session?.messages || []
-}
-
-function stopCurrentStream() {
-  // Persist current events to the session before aborting
+function persistCurrentSession() {
   if (currentSessionId.value) {
     const session = sessions.value.find(s => s.id === currentSessionId.value)
     if (session) {
       session.messages = [...events.value]
     }
   }
-  if (currentStream) {
-    currentStream.abort()
-    currentStream = null
+}
+
+function createNewSession() {
+  persistCurrentSession()
+  const id = Date.now().toString()
+  sessions.value.unshift({ id, name: 'New Chat', messages: [] })
+  currentSessionId.value = id
+  events.value = []
+  // Update streaming state for the new session
+  isStreaming.value = sessionStreams.has(id)
+  streamingForSessionId = isStreaming.value ? id : null
+}
+
+function selectSession(id) {
+  if (id === currentSessionId.value) return
+  persistCurrentSession()
+  currentSessionId.value = id
+  const session = sessions.value.find(s => s.id === id)
+  events.value = session?.messages || []
+  // Update streaming state for the selected session
+  isStreaming.value = sessionStreams.has(id)
+  streamingForSessionId = isStreaming.value ? id : null
+}
+
+function stopCurrentStream() {
+  persistCurrentSession()
+  const stream = sessionStreams.get(currentSessionId.value)
+  if (stream) {
+    stream.abort()
+    sessionStreams.delete(currentSessionId.value)
   }
   isStreaming.value = false
   streamingForSessionId = null
 }
 
 function deleteSession(id) {
+  const stream = sessionStreams.get(id)
+  if (stream) {
+    stream.abort()
+    sessionStreams.delete(id)
+  }
   sessions.value = sessions.value.filter(s => s.id !== id)
   if (currentSessionId.value === id) {
     const remaining = sessions.value[0]
@@ -112,11 +140,25 @@ function clearHistory() {
   if (session) session.messages = []
 }
 
+function buildHistory() {
+  // Extract USER/FINAL pairs from current events to provide conversation context
+  const history = []
+  for (const event of events.value) {
+    if (event.type === 'USER') {
+      history.push({ role: 'user', content: event.content })
+    } else if (event.type === 'FINAL') {
+      history.push({ role: 'assistant', content: event.content })
+    }
+  }
+  // Keep last 10 turns (20 messages) to avoid blowing up the prompt
+  return history.slice(-20)
+}
+
 function handleSubmit(message) {
   console.log('handleSubmit called:', message)
   if (!message.trim()) return
   // Guard against double-submission (Enter + click firing simultaneously)
-  if (isStreaming.value) return
+  if (sessionStreams.has(currentSessionId.value)) return
 
   // Abort any running stream from the current session before starting a new one
   stopCurrentStream()
@@ -131,37 +173,52 @@ function handleSubmit(message) {
     session.messages.push({ type: 'USER', content: message })
   }
 
+  const history = buildHistory()
   events.value.push({ type: 'USER', content: message })
   isStreaming.value = true
   streamingForSessionId = currentSessionId.value
 
-  currentStream = createAgentStreamPost(message)
-  console.log('Starting stream for session:', streamingForSessionId)
-  currentStream.start(
+  const stream = createAgentStreamPost(message, null, history)
+  const owningSessionId = currentSessionId.value
+  sessionStreams.set(owningSessionId, stream)
+  console.log('Starting stream for session:', owningSessionId)
+  stream.start(
     (data) => {
       console.log('Received data:', data)
-      handleStreamEvent(data)
+      handleStreamEvent(data, owningSessionId)
     },
     (err) => {
       console.error('Stream error:', err)
-      isStreaming.value = false
-      streamingForSessionId = null
+      if (currentSessionId.value === owningSessionId) {
+        isStreaming.value = false
+        streamingForSessionId = null
+      }
+      sessionStreams.delete(owningSessionId)
       events.value.push({ type: 'ERROR', content: 'Connection error: ' + err.message })
     }
   )
 }
 
-function handleStreamEvent(data) {
-  console.log('handleStreamEvent:', data)
-  // Discard events if user switched to a different session
-  if (streamingForSessionId && streamingForSessionId !== currentSessionId.value) {
-    return
-  }
+function handleStreamEvent(data, owningSessionId) {
+  console.log('handleStreamEvent:', data, 'for session:', owningSessionId)
+  const isActiveSession = owningSessionId === currentSessionId.value
   const event = {
     type: data.type || data.eventType || 'UNKNOWN',
     content: data.content || data.message || '',
     toolName: data.toolName || null,
     input: data.input || null
+  }
+
+  // For background (inactive) sessions: only save FINAL/ERROR and clean up
+  if (!isActiveSession) {
+    if (event.type === 'FINAL' || event.type === 'ERROR') {
+      const session = sessions.value.find(s => s.id === owningSessionId)
+      if (session) {
+        session.messages.push(event)
+      }
+      sessionStreams.delete(owningSessionId)
+    }
+    return
   }
 
   if (event.type === 'TOOL_CALL') {
@@ -182,10 +239,9 @@ function handleStreamEvent(data) {
   }
 
   if (event.type === 'FINAL' || event.type === 'ERROR') {
-    if (streamingForSessionId === currentSessionId.value) {
-      isStreaming.value = false
-      streamingForSessionId = null
-    }
+    isStreaming.value = false
+    streamingForSessionId = null
+    sessionStreams.delete(owningSessionId)
     saveSession()
   }
 }
@@ -212,6 +268,11 @@ function handleWorkspaceChanged(workspace) {
 }
 
 onMounted(() => {
+  const saved = localStorage.getItem('theme')
+  if (saved === 'light') {
+    isLight.value = true
+    applyTheme()
+  }
   if (sessions.value.length === 0) {
     createNewSession()
   }
@@ -219,7 +280,11 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  stopCurrentStream()
+  persistCurrentSession()
+  for (const stream of sessionStreams.values()) {
+    stream.abort()
+  }
+  sessionStreams.clear()
 })
 </script>
 
@@ -227,13 +292,13 @@ onUnmounted(() => {
 .chat-layout {
   display: flex;
   height: 100vh;
-  background: #0f0f1a;
+  background: var(--bg-primary);
 }
 
 .sidebar {
   width: 240px;
-  background: #1a1a2e;
-  border-right: 1px solid #2a2a4a;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
 }
@@ -243,13 +308,13 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px;
-  border-bottom: 1px solid #2a2a4a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .sidebar-header h2 {
   font-size: 14px;
   font-weight: 600;
-  color: #888;
+  color: var(--text-muted);
 }
 
 .new-chat-btn {
@@ -257,7 +322,7 @@ onUnmounted(() => {
   height: 28px;
   border-radius: 6px;
   border: none;
-  background: #3b82f6;
+  background: var(--accent);
   color: white;
   cursor: pointer;
   font-size: 18px;
@@ -280,17 +345,17 @@ onUnmounted(() => {
 }
 
 .session-item:hover {
-  background: #2a2a4a;
+  background: var(--bg-tertiary);
 }
 
 .session-item.active {
-  background: #2a2a4a;
-  border-left: 3px solid #3b82f6;
+  background: var(--bg-tertiary);
+  border-left: 3px solid var(--accent);
 }
 
 .session-name {
   font-size: 13px;
-  color: #ccc;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -303,7 +368,7 @@ onUnmounted(() => {
   border-radius: 4px;
   border: none;
   background: transparent;
-  color: #666;
+  color: var(--text-hint);
   cursor: pointer;
   font-size: 14px;
   display: none;
@@ -314,7 +379,7 @@ onUnmounted(() => {
 }
 
 .delete-btn:hover {
-  background: #ef4444;
+  background: var(--danger);
   color: white;
 }
 
@@ -330,26 +395,41 @@ onUnmounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  border-bottom: 1px solid #2a2a4a;
-  background: #1a1a2e;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-secondary);
 }
 
 .chat-header h1 {
   font-size: 16px;
   font-weight: 600;
-  color: #e0e0e0;
+  color: var(--text-primary);
 }
 
 .header-actions {
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.theme-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  font-size: 16px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.theme-btn:hover {
+  background: var(--bg-tertiary);
 }
 
 .stop-btn {
   padding: 6px 12px;
   border-radius: 6px;
   border: none;
-  background: #ef4444;
+  background: var(--danger);
   color: white;
   font-size: 12px;
   cursor: pointer;
@@ -358,9 +438,9 @@ onUnmounted(() => {
 .clear-btn {
   padding: 6px 12px;
   border-radius: 6px;
-  border: 1px solid #3a3a5a;
+  border: 1px solid var(--border-subtle);
   background: transparent;
-  color: #888;
+  color: var(--text-muted);
   font-size: 12px;
   cursor: pointer;
 }

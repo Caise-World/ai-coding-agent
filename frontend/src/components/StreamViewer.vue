@@ -135,31 +135,31 @@ watch(() => props.events, (events) => {
 }
 
 .marker-thinking, .marker-planning {
-  background: #7c3aed;
+  background: var(--purple);
 }
 
 .marker-tool_call {
-  background: #3b82f6;
+  background: var(--accent);
 }
 
 .marker-tool_result {
-  background: #22c55e;
+  background: var(--success);
 }
 
 .marker-memory_read, .marker-memory_write {
-  background: #f59e0b;
+  background: var(--warning);
 }
 
 .marker-verification {
-  background: #22c55e;
+  background: var(--success);
 }
 
 .marker-final {
-  background: #ec4899;
+  background: var(--pink);
 }
 
 .marker-error {
-  background: #ef4444;
+  background: var(--danger);
 }
 
 .marker-reflection {
@@ -167,19 +167,19 @@ watch(() => props.events, (events) => {
 }
 
 .marker-repair {
-  background: #06b6d4;
+  background: var(--cyan);
 }
 
 .marker-retry {
-  background: #f59e0b;
+  background: var(--warning);
 }
 
 .marker-max_retries_exceeded {
-  background: #dc2626;
+  background: var(--dark-red);
 }
 
 .marker-rag_read {
-  background: #3b82f6;
+  background: var(--accent);
 }
 
 .timeline-content {
@@ -194,6 +194,6 @@ watch(() => props.events, (events) => {
   top: 32px;
   bottom: -4px;
   width: 2px;
-  background: #2a2a4a;
+  background: var(--border-color);
 }
 </style>

@@ -34,9 +34,9 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 
 <style scoped>
 .tool-panel {
-  background: #1a2a3a;
+  background: var(--tool-panel-bg);
   border-radius: 12px;
-  border: 1px solid #2a4a6a;
+  border: 1px solid var(--tool-panel-border);
   overflow: hidden;
   margin: 8px 0;
 }
@@ -46,8 +46,8 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
   align-items: center;
   gap: 8px;
   padding: 12px 16px;
-  background: #0f1f2f;
-  border-bottom: 1px solid #2a4a6a;
+  background: var(--tool-header-bg);
+  border-bottom: 1px solid var(--tool-panel-border);
 }
 
 .tool-icon {
@@ -56,13 +56,13 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 
 .tool-name {
   font-weight: 600;
-  color: #60a5fa;
+  color: var(--accent-text);
   font-size: 14px;
 }
 
 .tool-section {
   padding: 12px 16px;
-  border-bottom: 1px solid #2a4a6a;
+  border-bottom: 1px solid var(--tool-panel-border);
 }
 
 .tool-section:last-of-type {
@@ -71,7 +71,7 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 
 .section-label {
   font-size: 11px;
-  color: #888;
+  color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 8px;
@@ -80,8 +80,8 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 .section-content {
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 12px;
-  color: #e0e0e0;
-  background: #0d1520;
+  color: var(--text-primary);
+  background: var(--tool-code-bg);
   padding: 12px;
   border-radius: 6px;
   overflow-x: auto;
@@ -92,13 +92,13 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 }
 
 .output-content.error {
-  border-left: 3px solid #ef4444;
-  color: #fca5a5;
+  border-left: 3px solid var(--danger);
+  color: var(--canary-red);
 }
 
 .tool-status {
   padding: 8px 16px;
-  background: #0f1f2f;
+  background: var(--tool-header-bg);
 }
 
 .status-badge {
@@ -109,12 +109,12 @@ const isError = computed(() => props.output?.toLowerCase().includes('error') ||
 }
 
 .status-badge.success {
-  background: #22c55e20;
-  color: #22c55e;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .status-badge.failed {
-  background: #ef444420;
-  color: #ef4444;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 </style>

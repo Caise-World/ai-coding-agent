@@ -1,0 +1,147 @@
+:root {
+  /* Backgrounds */
+  --bg-primary: #0f0f1a;
+  --bg-secondary: #1a1a2e;
+  --bg-tertiary: #2a2a4a;
+  --bg-elevated: #1e1e3f;
+  --bg-code: #0d0d1a;
+
+  /* Text */
+  --text-primary: #e0e0e0;
+  --text-secondary: #ccc;
+  --text-muted: #888;
+  --text-hint: #666;
+
+  /* Borders */
+  --border-color: #2a2a4a;
+  --border-subtle: #3a3a5a;
+
+  /* Accent */
+  --accent: #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-text: #60a5fa;
+
+  /* Semantic — messages */
+  --msg-user-bg: #2a2a4a;
+  --msg-thinking-bg: #1e1e3f;
+  --msg-tool-call-bg: #1a2a3a;
+  --msg-tool-result-bg: #1a3a2a;
+  --msg-verification-bg: #2a2a1a;
+  --msg-final-bg: #2a1a2a;
+  --msg-error-bg: #3a1a1a;
+  --msg-reflection-bg: #2a2a5a;
+  --msg-repair-bg: #2a3a4a;
+  --msg-retry-bg: #3a3a2a;
+  --msg-max-retries-bg: #4a1a1a;
+
+  /* Tool panel */
+  --tool-panel-bg: #1a2a3a;
+  --tool-panel-border: #2a4a6a;
+  --tool-header-bg: #0f1f2f;
+  --tool-code-bg: #0d1520;
+
+  /* RAG panel */
+  --rag-panel-bg: #1a1a3a;
+  --rag-panel-border: #2a3a5a;
+  --rag-header-bg: #0f1f3f;
+  --rag-chunk-header-bg: #15152a;
+
+  /* Status */
+  --success: #22c55e;
+  --success-bg: #22c55e20;
+  --danger: #ef4444;
+  --danger-bg: #ef444420;
+  --warning: #f59e0b;
+  --warning-bg: #f59e0b20;
+  --pink: #ec4899;
+  --pink-bg: #2a1a3a;
+  --purple: #7c3aed;
+  --cyan: #06b6d4;
+  --dark-red: #dc2626;
+
+  /* Workspace */
+  --ws-bg: #15152a;
+  --ws-input-bg: #0f0f1a;
+  --ws-status-bg: #0f1f2f;
+
+  /* Input box */
+  --input-container-bg: #2a2a4a;
+
+  /* Canary */
+  --canary-red: #fca5a5;
+  --canary-red-bg: #2a1a1a;
+}
+
+:root.light {
+  /* Backgrounds */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8f9fa;
+  --bg-tertiary: #e9ecef;
+  --bg-elevated: #f1f3f5;
+  --bg-code: #f1f3f5;
+
+  /* Text */
+  --text-primary: #1a1a2e;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --text-hint: #9ca3af;
+
+  /* Borders */
+  --border-color: #d1d5db;
+  --border-subtle: #e5e7eb;
+
+  /* Accent */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-text: #2563eb;
+
+  /* Semantic — messages */
+  --msg-user-bg: #e9ecef;
+  --msg-thinking-bg: #ede9fe;
+  --msg-tool-call-bg: #dbeafe;
+  --msg-tool-result-bg: #dcfce7;
+  --msg-verification-bg: #fef9c3;
+  --msg-final-bg: #fce7f3;
+  --msg-error-bg: #fee2e2;
+  --msg-reflection-bg: #ede9fe;
+  --msg-repair-bg: #cffafe;
+  --msg-retry-bg: #fef3c7;
+  --msg-max-retries-bg: #fee2e2;
+
+  /* Tool panel */
+  --tool-panel-bg: #f0f4ff;
+  --tool-panel-border: #bfdbfe;
+  --tool-header-bg: #dbeafe;
+  --tool-code-bg: #f1f5f9;
+
+  /* RAG panel */
+  --rag-panel-bg: #f5f0ff;
+  --rag-panel-border: #ddd6fe;
+  --rag-header-bg: #ede9fe;
+  --rag-chunk-header-bg: #f5f3ff;
+
+  /* Status */
+  --success: #16a34a;
+  --success-bg: #dcfce7;
+  --danger: #dc2626;
+  --danger-bg: #fee2e2;
+  --warning: #d97706;
+  --warning-bg: #fef3c7;
+  --pink: #db2777;
+  --pink-bg: #fce7f3;
+  --purple: #7c3aed;
+  --cyan: #0891b2;
+  --dark-red: #b91c1c;
+
+  /* Workspace */
+  --ws-bg: #f8f9fa;
+  --ws-input-bg: #ffffff;
+  --ws-status-bg: #f0fdf4;
+
+  /* Input box */
+  --input-container-bg: #e9ecef;
+
+  /* Canary */
+  --canary-red: #dc2626;
+  --canary-red-bg: #fee2e2;
+}

@@ -63,9 +63,9 @@ function shortPath(path) {
 
 <style scoped>
 .rag-panel {
-  background: #1a1a3a;
+  background: var(--rag-panel-bg);
   border-radius: 12px;
-  border: 1px solid #2a3a5a;
+  border: 1px solid var(--rag-panel-border);
   overflow: hidden;
   margin: 8px 0;
 }
@@ -75,8 +75,8 @@ function shortPath(path) {
   align-items: center;
   gap: 10px;
   padding: 10px 16px;
-  background: #0f1f3f;
-  border-bottom: 1px solid #2a3a5a;
+  background: var(--rag-header-bg);
+  border-bottom: 1px solid var(--rag-panel-border);
 }
 
 .rag-icon {
@@ -85,23 +85,23 @@ function shortPath(path) {
 
 .rag-title {
   font-weight: 600;
-  color: #60a5fa;
+  color: var(--accent-text);
   font-size: 13px;
   flex: 1;
 }
 
 .rag-count {
   font-size: 11px;
-  color: #888;
-  background: #2a2a4a;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
   padding: 2px 8px;
   border-radius: 10px;
 }
 
 .expand-btn {
   background: transparent;
-  border: 1px solid #3a3a5a;
-  color: #888;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-muted);
   font-size: 11px;
   padding: 3px 10px;
   border-radius: 4px;
@@ -109,8 +109,8 @@ function shortPath(path) {
 }
 
 .expand-btn:hover {
-  border-color: #3b82f6;
-  color: #60a5fa;
+  border-color: var(--accent);
+  color: var(--accent-text);
 }
 
 .rag-body {
@@ -121,13 +121,13 @@ function shortPath(path) {
 .rag-empty {
   padding: 16px;
   text-align: center;
-  color: #666;
+  color: var(--text-hint);
   font-size: 12px;
   font-style: italic;
 }
 
 .rag-chunk {
-  border-bottom: 1px solid #2a2a4a;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .rag-chunk:last-child {
@@ -139,21 +139,21 @@ function shortPath(path) {
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #15152a;
+  background: var(--rag-chunk-header-bg);
   font-size: 11px;
   font-family: 'Fira Code', 'Consolas', monospace;
 }
 
 .loc-idx {
-  color: #ec4899;
+  color: var(--pink);
   font-weight: 600;
-  background: #2a1a3a;
+  background: var(--pink-bg);
   padding: 1px 6px;
   border-radius: 3px;
 }
 
 .loc-path {
-  color: #60a5fa;
+  color: var(--accent-text);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -161,14 +161,14 @@ function shortPath(path) {
 }
 
 .loc-lines {
-  color: #888;
-  background: #2a2a4a;
+  color: var(--text-muted);
+  background: var(--bg-tertiary);
   padding: 1px 6px;
   border-radius: 3px;
 }
 
 .loc-score {
-  color: #22c55e;
+  color: var(--success);
   font-weight: 500;
 }
 
@@ -177,8 +177,8 @@ function shortPath(path) {
   margin: 0;
   font-family: 'Fira Code', 'Consolas', monospace;
   font-size: 12px;
-  color: #d0d0e0;
-  background: #0d0d1a;
+  color: var(--text-primary);
+  background: var(--bg-code);
   white-space: pre-wrap;
   word-break: break-word;
   max-height: 200px;

@@ -261,6 +261,28 @@ public class DeterministicRouter {
 
     // ─── Router Result ────────────────────────────────────────
 
+    /**
+     * Returns true when the message is a pure greeting or has no code signal at all.
+     * These can skip the agentic loop and get a quick direct answer.
+     * R4 (code understanding) is NOT a quick chat — it needs the loop for context.
+     */
+    public boolean isQuickChat(String userMessage) {
+        if (userMessage == null || userMessage.isBlank()) return true;
+
+        // R1: pure greeting
+        var matcher = GREETING_PATTERN.matcher(userMessage);
+        if (matcher.find()) {
+            String remainder = userMessage.substring(matcher.end()).trim();
+            remainder = remainder.replaceFirst("^[,，。！!\\s]+", "").trim();
+            if (remainder.isEmpty()) return true;
+        }
+
+        // R9: no code signal at all
+        if (!hasAnyCodeSignal(userMessage)) return true;
+
+        return false;
+    }
+
     public record RouterResult(String toolName, String input, boolean ambiguous) {
         public RouterResult {
             if (toolName == null || toolName.isBlank()) {

@@ -79,8 +79,8 @@ onMounted(() => {
 <style scoped>
 .workspace-opener {
   padding: 12px 16px;
-  background: #15152a;
-  border-bottom: 1px solid #2a2a4a;
+  background: var(--ws-bg);
+  border-bottom: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -93,11 +93,11 @@ onMounted(() => {
 
 .path-input {
   flex: 1;
-  background: #0f0f1a;
-  border: 1px solid #2a2a4a;
+  background: var(--ws-input-bg);
+  border: 1px solid var(--border-color);
   border-radius: 6px;
   padding: 8px 12px;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 13px;
   font-family: 'Fira Code', 'Consolas', monospace;
   outline: none;
@@ -105,7 +105,7 @@ onMounted(() => {
 }
 
 .path-input:focus {
-  border-color: #3b82f6;
+  border-color: var(--accent);
 }
 
 .path-input:disabled {
@@ -116,7 +116,7 @@ onMounted(() => {
   padding: 8px 16px;
   border-radius: 6px;
   border: none;
-  background: #3b82f6;
+  background: var(--accent);
   color: white;
   font-size: 13px;
   font-weight: 500;
@@ -126,7 +126,7 @@ onMounted(() => {
 }
 
 .open-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--accent-hover);
 }
 
 .open-btn:disabled {
@@ -149,11 +149,11 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   padding: 6px 10px;
-  background: #0f1f2f;
+  background: var(--ws-status-bg);
   border-radius: 6px;
-  border-left: 3px solid #22c55e;
+  border-left: 3px solid var(--success);
 }
 
 .status-icon {
@@ -163,14 +163,14 @@ onMounted(() => {
 .status-path {
   flex: 1;
   font-family: 'Fira Code', 'Consolas', monospace;
-  color: #60a5fa;
+  color: var(--accent-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .status-meta {
-  color: #888;
+  color: var(--text-muted);
   font-size: 11px;
   display: flex;
   align-items: center;
@@ -178,8 +178,8 @@ onMounted(() => {
 }
 
 .cache-badge {
-  background: #f59e0b20;
-  color: #f59e0b;
+  background: var(--warning-bg);
+  color: var(--warning);
   padding: 2px 6px;
   border-radius: 10px;
   font-size: 10px;
@@ -191,11 +191,11 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #fca5a5;
+  color: var(--canary-red);
   padding: 6px 10px;
-  background: #2a1a1a;
+  background: var(--canary-red-bg);
   border-radius: 6px;
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid var(--danger);
 }
 
 .error-icon {

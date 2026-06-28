@@ -1,17 +1,22 @@
 const API_BASE = '/api/agent'
 
-export function createAgentStreamPost(message, path = null) {
+export function createAgentStreamPost(message, path = null, history = []) {
   let aborted = false
   const controller = new AbortController()
 
   async function start(onMessage, onError) {
     try {
+      const body = { message, path }
+      if (history.length > 0) {
+        body.history = history
+      }
+
       const res = await fetch(`${API_BASE}/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ message, path }),
+        body: JSON.stringify(body),
         signal: controller.signal
       })
 

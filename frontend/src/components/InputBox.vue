@@ -73,14 +73,14 @@ defineExpose({ focus })
 <style scoped>
 .input-box {
   padding: 16px 20px;
-  background: #1a1a2e;
-  border-top: 1px solid #2a2a4a;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
 }
 
 .input-container {
   display: flex;
   gap: 12px;
-  background: #2a2a4a;
+  background: var(--input-container-bg);
   border-radius: 12px;
   padding: 8px;
   align-items: flex-end;
@@ -90,7 +90,7 @@ defineExpose({ focus })
   flex: 1;
   background: transparent;
   border: none;
-  color: #e0e0e0;
+  color: var(--text-primary);
   font-size: 14px;
   font-family: inherit;
   resize: none;
@@ -101,7 +101,7 @@ defineExpose({ focus })
 }
 
 .input-container textarea::placeholder {
-  color: #666;
+  color: var(--text-hint);
 }
 
 .input-container textarea:disabled {
@@ -113,7 +113,7 @@ defineExpose({ focus })
   height: 40px;
   border-radius: 8px;
   border: none;
-  background: #3b82f6;
+  background: var(--accent);
   color: white;
   cursor: pointer;
   display: flex;
@@ -125,7 +125,7 @@ defineExpose({ focus })
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: var(--accent-hover);
   transform: scale(1.05);
 }
 
@@ -145,7 +145,7 @@ defineExpose({ focus })
 
 .input-hint {
   font-size: 11px;
-  color: #555;
+  color: var(--text-hint);
   text-align: center;
   margin-top: 8px;
 }

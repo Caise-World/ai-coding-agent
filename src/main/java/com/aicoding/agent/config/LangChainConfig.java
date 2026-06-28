@@ -22,7 +22,7 @@ public class LangChainConfig {
     public RestTemplate restTemplate() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10000);  // 10s
-        factory.setReadTimeout(30000);    // 30s
+        factory.setReadTimeout(120000);   // 120s — LLMService enforces 60s via CompletableFuture
         return new RestTemplate(factory);
     }
 }

@@ -87,57 +87,57 @@ watch(() => props.content, (newVal) => {
 }
 
 .message-user {
-  background: #2a2a4a;
+  background: var(--msg-user-bg);
 }
 
 .message-thinking, .message-planning {
-  background: #1e1e3f;
-  border-left: 3px solid #7c3aed;
+  background: var(--msg-thinking-bg);
+  border-left: 3px solid var(--purple);
 }
 
 .message-tool-call {
-  background: #1a2a3a;
-  border-left: 3px solid #3b82f6;
+  background: var(--msg-tool-call-bg);
+  border-left: 3px solid var(--accent);
 }
 
 .message-tool-result {
-  background: #1a3a2a;
-  border-left: 3px solid #22c55e;
+  background: var(--msg-tool-result-bg);
+  border-left: 3px solid var(--success);
 }
 
 .message-verification {
-  background: #2a2a1a;
+  background: var(--msg-verification-bg);
   border-left: 3px solid #eab308;
 }
 
 .message-final {
-  background: #2a1a2a;
-  border-left: 3px solid #ec4899;
+  background: var(--msg-final-bg);
+  border-left: 3px solid var(--pink);
 }
 
 .message-error {
-  background: #3a1a1a;
-  border-left: 3px solid #ef4444;
+  background: var(--msg-error-bg);
+  border-left: 3px solid var(--danger);
 }
 
 .message-reflection {
-  background: #2a2a5a;
+  background: var(--msg-reflection-bg);
   border-left: 3px solid #8b5cf6;
 }
 
 .message-repair {
-  background: #2a3a4a;
-  border-left: 3px solid #06b6d4;
+  background: var(--msg-repair-bg);
+  border-left: 3px solid var(--cyan);
 }
 
 .message-retry {
-  background: #3a3a2a;
-  border-left: 3px solid #f59e0b;
+  background: var(--msg-retry-bg);
+  border-left: 3px solid var(--warning);
 }
 
 .message-max-retries-exceeded {
-  background: #4a1a1a;
-  border-left: 3px solid #dc2626;
+  background: var(--msg-max-retries-bg);
+  border-left: 3px solid var(--dark-red);
 }
 
 .message-icon {
@@ -152,14 +152,14 @@ watch(() => props.content, (newVal) => {
 
 .message-label {
   font-size: 12px;
-  color: #888;
+  color: var(--text-muted);
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
 
 .message-text {
-  color: #e0e0e0;
+  color: var(--text-primary);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -176,7 +176,7 @@ watch(() => props.content, (newVal) => {
 }
 
 .message-text pre {
-  background: #0d0d1a;
+  background: var(--bg-code);
   padding: 12px;
   border-radius: 8px;
   overflow-x: auto;

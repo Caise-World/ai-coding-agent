@@ -1,5 +1,6 @@
 package com.aicoding.agent.service;
 
+import com.aicoding.agent.agent.AgenticLoopRunner;
 import com.aicoding.agent.dto.AgentEvent;
 import com.aicoding.agent.dto.ChatRequest;
 import com.aicoding.agent.memory.MemoryService;
@@ -30,6 +31,7 @@ public class PluginBasedStreamingAgentService {
     private final CodeQuestionDetector codeQuestionDetector;
     private final DeterministicRouter deterministicRouter;
     private final WorkspaceService workspaceService;
+    private final AgenticLoopRunner agenticLoopRunner;
     private final String defaultProjectPath;
 
     public PluginBasedStreamingAgentService(
@@ -42,6 +44,7 @@ public class PluginBasedStreamingAgentService {
             CodeQuestionDetector codeQuestionDetector,
             DeterministicRouter deterministicRouter,
             WorkspaceService workspaceService,
+            AgenticLoopRunner agenticLoopRunner,
             String defaultProjectPath) {
         this.toolRegistry = toolRegistry;
         this.toolSelector = toolSelector;
@@ -52,6 +55,7 @@ public class PluginBasedStreamingAgentService {
         this.codeQuestionDetector = codeQuestionDetector;
         this.deterministicRouter = deterministicRouter;
         this.workspaceService = workspaceService;
+        this.agenticLoopRunner = agenticLoopRunner;
         this.defaultProjectPath = defaultProjectPath;
     }
 
@@ -64,8 +68,10 @@ public class PluginBasedStreamingAgentService {
             RagService ragService,
             CodeQuestionDetector codeQuestionDetector,
             DeterministicRouter deterministicRouter,
+            AgenticLoopRunner agenticLoopRunner,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, deterministicRouter, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService,
+                codeQuestionDetector, deterministicRouter, null, agenticLoopRunner, defaultProjectPath);
     }
 
     public PluginBasedStreamingAgentService(
@@ -76,8 +82,10 @@ public class PluginBasedStreamingAgentService {
             LLMService llmService,
             RagService ragService,
             CodeQuestionDetector codeQuestionDetector,
+            AgenticLoopRunner agenticLoopRunner,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, codeQuestionDetector, null, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService,
+                codeQuestionDetector, null, agenticLoopRunner, defaultProjectPath);
     }
 
     public PluginBasedStreamingAgentService(
@@ -87,8 +95,10 @@ public class PluginBasedStreamingAgentService {
             MemoryService memoryService,
             LLMService llmService,
             RagService ragService,
+            AgenticLoopRunner agenticLoopRunner,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService, null, null, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, ragService,
+                null, null, agenticLoopRunner, defaultProjectPath);
     }
 
     public PluginBasedStreamingAgentService(
@@ -97,8 +107,10 @@ public class PluginBasedStreamingAgentService {
             ToolExecutor toolExecutor,
             MemoryService memoryService,
             LLMService llmService,
+            AgenticLoopRunner agenticLoopRunner,
             String defaultProjectPath) {
-        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, null, null, null, null, defaultProjectPath);
+        this(toolRegistry, toolSelector, toolExecutor, memoryService, llmService, null,
+                null, null, agenticLoopRunner, defaultProjectPath);
     }
 
     public Flux<AgentEvent> executeStream(ChatRequest request) {
@@ -122,18 +134,9 @@ public class PluginBasedStreamingAgentService {
         String userMessage = request.getMessage();
         String projectPath = request.getPath() != null ? request.getPath() : defaultProjectPath;
 
-        // Phase 0: Memory Retrieval
-        sink.tryEmitNext(AgentEvent.thinking("Retrieving relevant experiences from memory..."));
-        String memoryContext = memoryService.getMemoryContext();
-        String repairContext = memoryService.getRepairContext();
-        sink.tryEmitNext(AgentEvent.memoryRead(memoryContext.isBlank() ? "No prior experience found" : memoryContext));
-        if (!repairContext.isBlank()) {
-            sink.tryEmitNext(AgentEvent.memoryRead("[Repair Context]\n" + repairContext));
-        }
-
+        // Phase 0: Session setup
         memoryService.saveShortTerm(sessionId, "userMessage", userMessage);
         memoryService.saveShortTerm(sessionId, "projectPath", projectPath);
-        sink.tryEmitNext(AgentEvent.memoryWrite("Saved user request to short-term memory"));
 
         // Ensure workspace is open for the current project (required for RAG retrieval)
         if (workspaceService != null) {
@@ -153,54 +156,29 @@ public class PluginBasedStreamingAgentService {
             }
         }
 
-        // Phase 2: Tool Selection (deterministic router → LLM fallback)
-        sink.tryEmitNext(AgentEvent.planning("Analyzing request and selecting appropriate tool..."));
+        // Phase 2: Route check → Agentic Loop or Direct Answer
+        sink.tryEmitNext(AgentEvent.planning("Analyzing request..."));
 
-        ToolSelector.ToolSelection selection;
-        if (deterministicRouter != null) {
-            DeterministicRouter.RouterResult routing = deterministicRouter.classify(userMessage, projectPath);
-            if (!routing.ambiguous()) {
-                sink.tryEmitNext(AgentEvent.thinking("Deterministic routing: " + routing.toolName()));
-                selection = new ToolSelector.ToolSelection(routing.toolName(), routing.input(), null);
-            } else {
-                sink.tryEmitNext(AgentEvent.thinking("Ambiguous input, using LLM routing..."));
-                sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
-                selection = toolSelector.select(userMessage, projectPath);
-                sink.tryEmitNext(AgentEvent.thinking("LLM selected tool: " + selection.toolName()));
-            }
-        } else {
-            sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
-            selection = toolSelector.select(userMessage, projectPath);
-            sink.tryEmitNext(AgentEvent.thinking("LLM selected tool: " + selection.toolName()));
-        }
+        boolean isQuickChat = deterministicRouter != null && deterministicRouter.isQuickChat(userMessage);
 
-        if (selection.hasError()) {
-            sink.tryEmitNext(AgentEvent.error("Tool selection failed: " + selection.error()));
-            sink.tryEmitNext(AgentEvent.finalAnswer("Sorry, I couldn't select an appropriate tool for your request."));
-            return;
-        }
-
-        if (selection.isNone()) {
+        if (isQuickChat) {
             sink.tryEmitNext(AgentEvent.thinking("No tool needed, providing direct answer..."));
-            String answer = generateDirectAnswer(userMessage, ragContext);
+            String answer = generateDirectAnswer(userMessage, ragContext, request.getEffectiveHistory());
             sink.tryEmitNext(AgentEvent.finalAnswer(answer));
-            return;
+        } else if (agenticLoopRunner != null) {
+            sink.tryEmitNext(AgentEvent.thinking("Available tools: " + toolRegistry.getToolNames()));
+            String answer = agenticLoopRunner.run(userMessage, ragContext,
+                    request.getEffectiveHistory(), sink);
+            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
+        } else {
+            // Fallback to deterministic ToolSelector path (for backward compatibility)
+            sink.tryEmitNext(AgentEvent.thinking("Agentic loop unavailable, using direct answer..."));
+            String answer = generateDirectAnswer(userMessage, ragContext, request.getEffectiveHistory());
+            sink.tryEmitNext(AgentEvent.finalAnswer(answer));
         }
 
-        // Phase 3: Tool Execution with Self-Healing
-        ToolExecutor.ToolExecutionResult finalResult = executeWithSelfHealing(
-                selection, userMessage, projectPath, sink, ragContext);
-
-        // Phase 4: Generate Final Answer
-        String summary = buildSummary(userMessage, selection, finalResult, ragContext);
-        sink.tryEmitNext(AgentEvent.finalAnswer(summary));
-
-        // Final memory update
+        // Final memory update (silent — no user-facing event)
         memoryService.saveShortTerm(sessionId, "endTime", System.currentTimeMillis());
-        memoryService.saveShortTerm(sessionId, "selectedTool", selection.toolName());
-        memoryService.saveShortTerm(sessionId, "success", finalResult.success());
-        sink.tryEmitNext(AgentEvent.memoryWrite("Session completed. Tool: " + selection.toolName() +
-                ", Success: " + finalResult.success()));
     }
 
     private ToolExecutor.ToolExecutionResult executeWithSelfHealing(
@@ -326,31 +304,40 @@ public class PluginBasedStreamingAgentService {
         return extracted;
     }
 
-    private String generateDirectAnswer(String userMessage, String ragContext) {
-        String prompt;
+    private String generateDirectAnswer(String userMessage, String ragContext,
+                                          java.util.List<com.aicoding.agent.dto.ChatRequest.HistoryMessage> history) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are a helpful coding assistant.\n\n");
+
+        // Include conversation history so follow-up questions have context
+        if (history != null && !history.isEmpty()) {
+            prompt.append("Previous conversation:\n");
+            for (var msg : history) {
+                String label = "user".equalsIgnoreCase(msg.role()) ? "User" : "Assistant";
+                prompt.append(label).append(": ").append(msg.content()).append("\n");
+            }
+            prompt.append("\n");
+        }
+
         if (ragContext != null && !ragContext.isBlank()) {
-            prompt = """
-                    You are a helpful coding assistant. The user asked:
-
-                    %s
-
+            prompt.append("""
                     Here are relevant code snippets from the workspace (with file path and line numbers):
 
                     %s
 
                     Use these snippets to answer accurately. Reference paths and line numbers when relevant.
-                    """.formatted(userMessage, ragContext);
+
+                    Current question: %s
+                    """.formatted(ragContext, userMessage));
         } else {
-            prompt = """
-                    You are a helpful coding assistant. The user asked:
-
-                    %s
-
-                    Please provide a direct answer without using any tools.
-                    """.formatted(userMessage);
+            prompt.append("Current question: ").append(userMessage).append("\n\n");
+            prompt.append("Please provide a direct answer without using any tools.");
+            if (history != null && !history.isEmpty()) {
+                prompt.append(" Take into account the conversation context above.");
+            }
         }
 
-        LLMService.LLMResponse response = llmService.chat(prompt);
+        LLMService.LLMResponse response = llmService.chat(prompt.toString());
         return stripThinking(response.content() != null ? response.content() : "I couldn't generate a response.");
     }
 
